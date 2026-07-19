@@ -33,9 +33,9 @@ const animalBite: Scenario = {
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "수축기혈압 90mmHg 미만",
-      detail: "하지 거상 후 생리식염수·젖산링거액 300mL 투여, 쇼크 지속 시 1L까지.",
+      detail: "하지 거상 후 생리식염수·하트만용액 300mL 투여, 쇼크 지속 시 1L까지.",
       sourceRef: "p.397",
-      pediatricDetail: "하지 거상 후 생리식염수·젖산링거액 20mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
+      pediatricDetail: "하지 거상 후 생리식염수·하트만용액 20mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
     },
     {
       id: "sting-removal",

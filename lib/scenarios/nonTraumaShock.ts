@@ -5,7 +5,10 @@ const nonTraumaShock: Scenario = {
   id: "non-trauma-shock",
   title: "비외상성 쇼크",
   status: "ready",
-  quickJumps: [{ label: "심정지 발생", href: "/scenarios/cardiac-arrest" }],
+  quickJumps: [
+    { label: "심정지 발생", href: "/scenarios/cardiac-arrest" },
+    { label: "알레르기·아나필락시스", href: "/scenarios/anaphylaxis" },
+  ],
   steps: [
     {
       id: "oxygen-by-consciousness",
@@ -19,17 +22,18 @@ const nonTraumaShock: Scenario = {
       severity: "critical",
       title: "아나필락시스 쇼크 처치",
       condition: "알레르기 반응 의심 시",
-      detail: "알레르기 및 아나필락시스 지침에 따라 처치.",
-      sourceRef: "p.214",
+      detail:
+        "알레르기·아나필락시스 지침 적용: 에피네프린 자동주사(대퇴부 전외측 근육주사, 5~15분 간격 반복 가능), 고농도 산소 투여, 수축기혈압<90mmHg 시 다리 거상 후 수액(생리식염수·하트만용액), 원인 알레르기 물질 제거. 자세한 항목은 위 '알레르기·아나필락시스' 바로가기 참고.",
+      sourceRef: "p.214, p.266~267",
     },
     {
       id: "iv-fluid-hypovolemic",
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "저혈량성 · 신경성 · 패혈성 쇼크",
-      detail: "생리식염수 또는 젖산링거액 300mL를 5~10분마다 투여, 최대 1L까지 지속.",
+      detail: "생리식염수 또는 하트만용액 300mL를 5~10분마다 투여, 최대 1L까지 지속.",
       sourceRef: "p.214",
-      pediatricDetail: "생리식염수 또는 젖산링거액 5mL/kg를 5~10분마다 투여, 최대 10mL/kg까지 지속.",
+      pediatricDetail: "생리식염수 또는 하트만용액 5mL/kg를 5~10분마다 투여, 최대 10mL/kg까지 지속.",
     },
     {
       id: "cardiogenic-fluid",

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Baby, ChevronRight } from "lucide-react";
+import { User, Baby, ChevronRight, Calculator } from "lucide-react";
 
 export default function AgeGatePage() {
   return (
@@ -38,13 +38,19 @@ export default function AgeGatePage() {
         </Link>
       </div>
 
+      <Link
+        href="/tools"
+        className="flex items-center gap-3 w-full p-4 mt-4 rounded-2xl border border-slate-700 bg-slate-800/50 active:bg-slate-800"
+      >
+        <Calculator size={22} className="text-slate-300 shrink-0" />
+        <span className="text-sm font-medium text-slate-100">계산기 (GCS·아프가·화상면적·CPC)</span>
+      </Link>
+
       <div className="mt-auto pt-10">
-        <p className="text-sm leading-relaxed text-slate-300 text-center">
-          이 체크리스트는 <span className="font-medium text-slate-100">개인이 참고하는 요약 자료</span>입니다.
+        <p className="text-sm leading-relaxed text-slate-300 text-center break-keep">
+          <span className="font-medium text-slate-100">개인 참고용 요약 자료</span>로, 업무 지침이 아닙니다.
           <br />
-          업무 지침이나 평가 기준이 아니며, 사용 여부는 전적으로 개인의 판단에 맡깁니다.
-          <br />
-          실제 현장 처치는 소속 기관의 표준지침과 의료지도를 따르세요.
+          사용은 개인 판단에 따르며, 실제 처치는 소속 기관 지침과 의료지도를 따르세요.
         </p>
       </div>
     </div>

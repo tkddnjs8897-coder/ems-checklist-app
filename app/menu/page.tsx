@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HeartPulse, Stethoscope, Ambulance, Baby } from "lucide-react";
 import { parseAge, withAge } from "@/lib/age";
+import { ScenarioSearch } from "@/components/ScenarioSearch";
 
 export default async function MenuPage({
   searchParams,
@@ -21,9 +22,11 @@ export default async function MenuPage({
           {ageLabel}
         </Link>
       </div>
-      <p className="text-xs text-slate-500 mb-6">
+      <p className="text-xs text-slate-500 mb-4">
         119구급대원 현장응급처치 표준지침(2023년 개정본) 기반
       </p>
+
+      <ScenarioSearch age={age} />
 
       <Link
         href={withAge("/scenarios/cardiac-arrest", age)}
@@ -36,7 +39,7 @@ export default async function MenuPage({
         </div>
       </Link>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${age === "pediatric" ? "grid-cols-2" : "grid-cols-3"}`}>
         <Link
           href={withAge("/disease", age)}
           className="flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border border-blue-500 bg-blue-950/50 active:bg-blue-900/50"
@@ -51,16 +54,18 @@ export default async function MenuPage({
           <Ambulance size={24} className="text-amber-300" />
           <span className="text-[13px] font-medium text-amber-100">질병외</span>
         </Link>
-        <Link
-          href={withAge("/childbirth", age)}
-          className="flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border border-pink-500 bg-pink-950/50 active:bg-pink-900/50"
-        >
-          <Baby size={24} className="text-pink-300" />
-          <span className="text-[13px] font-medium text-pink-100">출산</span>
-        </Link>
+        {age !== "pediatric" && (
+          <Link
+            href={withAge("/childbirth", age)}
+            className="flex flex-col items-center justify-center gap-2 py-6 rounded-2xl border border-pink-500 bg-pink-950/50 active:bg-pink-900/50"
+          >
+            <Baby size={24} className="text-pink-300" />
+            <span className="text-[13px] font-medium text-pink-100">출산</span>
+          </Link>
+        )}
       </div>
 
-      <p className="mt-auto pt-8 text-xs leading-relaxed text-slate-500">
+      <p className="mt-auto pt-8 text-xs leading-relaxed text-slate-500 break-keep">
         개인 참고용 요약 자료이며 업무 지침이 아닙니다. 실제 처치는 소속 기관의 표준지침과 의료지도를 따르세요.
       </p>
     </div>

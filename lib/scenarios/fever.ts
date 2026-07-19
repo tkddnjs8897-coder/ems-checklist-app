@@ -1,35 +1,13 @@
 import type { Scenario } from "../types";
 
-// 출처: 119구급대원 현장응급처치 표준지침(2023년 개정본) - 성인 발열·패혈증쇼크 p.262~264, 소아 발열 p.315~320
-const feverSepsis: Scenario = {
-  id: "fever-sepsis",
-  title: "발열·패혈증쇼크",
+// 출처: 119구급대원 현장응급처치 표준지침(2023년 개정본) - 성인 p.262~264, 소아 발열 p.315~320
+// 패혈증·패혈증성 쇼크가 의심되면 "패혈증의심" 시나리오(sepsis-shock)를 따로 둔다.
+const fever: Scenario = {
+  id: "fever",
+  title: "고열",
   status: "ready",
-  quickJumps: [{ label: "알레르기·아나필락시스", href: "/scenarios/anaphylaxis" }],
+  quickJumps: [{ label: "패혈증의심 징후", href: "/scenarios/sepsis-shock" }],
   steps: [
-    {
-      id: "oxygen",
-      severity: "critical",
-      title: "산소 투여",
-      detail: "패혈증·패혈증성 쇼크 의심 시 비강캐뉼러 1~5L/min 또는 안면마스크 6~10L/min 산소 투여.",
-      condition: "패혈증, 패혈증성 쇼크 의심",
-      sourceRef: "p.263",
-    },
-    {
-      id: "high-flow-oxygen",
-      severity: "critical",
-      title: "고농도 산소로 전환",
-      detail: "산소 투여 후에도 산소포화도 95% 미만이면 비재호흡마스크로 11~15L/min 투여.",
-      sourceRef: "p.263",
-    },
-    {
-      id: "iv-fluid",
-      severity: "critical",
-      title: "정맥로 확보 후 수액 투여",
-      detail: "생리식염수 또는 젖산링거액 300mL(소아 5mL/kg) 투여, 쇼크 지속 시 1L(소아 10mL/kg)까지 추가.",
-      sourceRef: "p.263",
-      pediatricDetail: "생리식염수 또는 젖산링거액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지 추가.",
-    },
     {
       id: "coexisting-symptom",
       severity: "urgent",
@@ -60,4 +38,4 @@ const feverSepsis: Scenario = {
   ],
 };
 
-export default feverSepsis;
+export default fever;

@@ -21,6 +21,14 @@ const bradycardia: Scenario = {
       sourceRef: "p.231",
     },
     {
+      id: "unstable-bradycardia",
+      severity: "critical",
+      title: "불안정 서맥(즉시 처치 대상) 판단",
+      detail:
+        "다음 중 하나라도 있으면 불안정 서맥으로 판단해 즉시 처치·이송한다: 의식변화·저혈압·흉통·호흡곤란·실신·울혈성 심부전·발한·구역/구토 등 불량한 관류 징후.",
+      sourceRef: "p.230~231",
+    },
+    {
       id: "oxygen-low-flow",
       severity: "urgent",
       title: "저산소증 교정 산소투여",

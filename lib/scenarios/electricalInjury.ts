@@ -47,9 +47,9 @@ const electricalInjury: Scenario = {
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "동반 손상으로 쇼크 위험 또는 수축기혈압 90mmHg 미만",
-      detail: "18G 이상 정맥로로 젖산링거액 300mL 투여, 쇼크 지속 시 1L까지.",
+      detail: "18G 이상 정맥로로 하트만용액 300mL 투여, 쇼크 지속 시 1L까지.",
       sourceRef: "p.368",
-      pediatricDetail: "18G 이상 정맥로로 젖산링거액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
+      pediatricDetail: "18G 이상 정맥로로 하트만용액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
     },
     {
       id: "ecg-monitor",

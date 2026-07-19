@@ -8,18 +8,11 @@ const tachycardia: Scenario = {
   quickJumps: [{ label: "심정지 발생", href: "/scenarios/cardiac-arrest" }],
   steps: [
     {
-      id: "defibrillation",
-      severity: "critical",
-      title: "제세동 시행",
-      condition: "심실세동 · 무맥성 심실빈맥일 경우",
-      detail: "자동심장충격기(AED)로 제세동.",
-      sourceRef: "p.234",
-    },
-    {
       id: "pulseless-warning",
       severity: "critical",
-      title: "무반응·무맥 시 심정지 지침 전환",
-      detail: "넓은 QRS 빈맥이라도 반응·맥박 없으면 심정지 치료지침을 따른다.",
+      title: "무반응·무맥 시 심정지 지침 전환(제세동 포함)",
+      detail:
+        "빈맥 환자가 무반응·무맥 상태이고 심실세동·무맥성 심실빈맥으로 확인되면(=심정지 상황) 제세동을 포함한 심정지 표준지침을 따른다. 맥박이 있으면 이 항목은 해당하지 않는다.",
       sourceRef: "p.234",
     },
     {

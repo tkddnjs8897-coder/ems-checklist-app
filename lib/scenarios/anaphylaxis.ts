@@ -5,7 +5,7 @@ const anaphylaxis: Scenario = {
   id: "anaphylaxis",
   title: "알레르기·아나필락시스",
   status: "ready",
-  quickJumps: [{ label: "발열·패혈증쇼크", href: "/scenarios/fever-sepsis" }],
+  quickJumps: [{ label: "패혈증의심", href: "/scenarios/sepsis-shock" }],
   steps: [
     {
       id: "epinephrine",
@@ -34,9 +34,9 @@ const anaphylaxis: Scenario = {
       id: "iv-fluid",
       severity: "critical",
       title: "다리 거상 · 정맥로 확보 후 수액",
-      detail: "수축기혈압<90mmHg 시 다리를 올리고 생리식염수·젖산링거액 300mL, 쇼크 지속 시 1L까지 투여.",
+      detail: "수축기혈압<90mmHg 시 다리를 올리고 생리식염수·하트만용액 300mL, 쇼크 지속 시 1L까지 투여.",
       sourceRef: "p.266",
-      pediatricDetail: "수축기혈압<90mmHg 시 다리를 올리고 생리식염수·젖산링거액 5mL/kg, 쇼크 지속 시 10mL/kg까지 투여.",
+      pediatricDetail: "수축기혈압<90mmHg 시 다리를 올리고 생리식염수·하트만용액 5mL/kg, 쇼크 지속 시 10mL/kg까지 투여.",
     },
     {
       id: "remove-allergen",

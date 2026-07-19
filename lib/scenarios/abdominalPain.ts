@@ -14,8 +14,8 @@ const abdominalPain: Scenario = {
       severity: "critical",
       title: "쇼크 징후 시 정맥로 확보 · 수액 투여",
       condition: "수축기혈압 90mmHg 미만 등 쇼크 징후 동반 시",
-      detail: "생리식염수 또는 젖산링거액 300mL 투여, 필요시 최대 1L까지.",
-      pediatricDetail: "생리식염수 또는 젖산링거액 5mL/kg 투여, 필요시 최대 10mL/kg까지.",
+      detail: "생리식염수 또는 하트만용액 300mL 투여, 필요시 최대 1L까지.",
+      pediatricDetail: "생리식염수 또는 하트만용액 5mL/kg 투여, 필요시 최대 10mL/kg까지.",
       sourceRef: "p.213",
     },
     {

@@ -15,7 +15,7 @@ const vaginalBleeding: Scenario = {
       severity: "critical",
       title: "정맥로 확보 및 수액 투여",
       condition: "출혈량 500mL 초과 또는 수축기혈압 90mmHg 미만",
-      detail: "생리식염수 또는 젖산링거액 500mL(소아 5mL/kg) 투여. 쇼크 지속 시 2L(소아 10mL/kg)까지 투여.",
+      detail: "생리식염수 또는 하트만용액 500mL(소아 5mL/kg) 투여. 쇼크 지속 시 2L(소아 10mL/kg)까지 투여.",
       sourceRef: "p.289",
     },
     {

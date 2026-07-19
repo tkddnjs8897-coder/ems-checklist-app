@@ -2,6 +2,7 @@ import type { Scenario } from "./types";
 import { findCatalogLabel } from "./catalog";
 
 import fallTrauma from "./scenarios/fallTrauma";
+import fallFromHeight from "./scenarios/fallFromHeight";
 import cardiacArrest from "./scenarios/cardiacArrest";
 import childbirth from "./scenarios/childbirth";
 import vaginalBleeding from "./scenarios/vaginalBleeding";
@@ -21,7 +22,8 @@ import alteredMentalStatus from "./scenarios/alteredMentalStatus";
 import stroke from "./scenarios/stroke";
 import seizure from "./scenarios/seizure";
 import hypoglycemia from "./scenarios/hypoglycemia";
-import feverSepsis from "./scenarios/feverSepsis";
+import fever from "./scenarios/fever";
+import sepsisShock from "./scenarios/sepsisShock";
 import behavioralEmergency from "./scenarios/behavioralEmergency";
 import abdominalPain from "./scenarios/abdominalPain";
 import nauseaVomiting from "./scenarios/nauseaVomiting";
@@ -74,7 +76,8 @@ const allScenarios: Scenario[] = [
   stroke,
   seizure,
   hypoglycemia,
-  feverSepsis,
+  fever,
+  sepsisShock,
   behavioralEmergency,
   abdominalPain,
   nauseaVomiting,
@@ -82,6 +85,7 @@ const allScenarios: Scenario[] = [
   dizziness,
 
   multiTrauma,
+  fallFromHeight,
   headInjury,
   spineInjury,
   chestInjury,

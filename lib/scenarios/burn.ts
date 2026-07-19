@@ -33,9 +33,9 @@ const burn: Scenario = {
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "동반 손상으로 쇼크 위험 또는 수축기혈압 90mmHg 미만",
-      detail: "18G 이상으로 정맥로 확보 후 젖산링거액 500mL를 5~10분마다 투여, 정상범위 회복까지.",
+      detail: "18G 이상으로 정맥로 확보 후 하트만용액 500mL를 5~10분마다 투여, 정상범위 회복까지.",
       sourceRef: "p.365",
-      pediatricDetail: "18G 이상으로 정맥로 확보 후 젖산링거액 20mL/kg를 5~10분마다 투여, 정상범위 회복까지.",
+      pediatricDetail: "18G 이상으로 정맥로 확보 후 하트만용액 20mL/kg를 5~10분마다 투여, 정상범위 회복까지.",
     },
     {
       id: "clothing-cooling",

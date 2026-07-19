@@ -1,25 +1,36 @@
 import type { Scenario } from "../types";
 
 // 출처: 119구급대원 현장응급처치 표준지침(2023년 개정본)
-// 같은 높이(보행 중 등)에서 넘어진 낙상 환자용. 높은 곳에서 떨어진 경우는 "추락(높은 곳)"
-// 시나리오(fall-from-height)를 따로 둔다 — 성인 6m/소아 3m(또는 키의 2~3배) 이상이면 고에너지
-// 손상 가능성이 크게 달라지므로 판단 기준부터 구분해서 안내한다.
-const fallTrauma: Scenario = {
-  id: "fall-trauma",
-  title: "낙상(넘어짐)",
+// 높은 곳에서 떨어진 추락 환자용. 판정 기준(성인 6m/소아 3m 또는 키의 2~3배)은 현장 확인
+// 기준으로, 정확한 지침 페이지는 추후 확인 필요. 같은 높이에서 넘어진 경우는
+// "낙상(넘어짐)" 시나리오(fall-trauma)를 따른다.
+const fallFromHeight: Scenario = {
+  id: "fall-from-height",
+  title: "추락(높은 곳)",
   status: "ready",
   quickJumps: [
     { label: "심정지 발생", href: "/scenarios/cardiac-arrest" },
     { label: "기도폐쇄", href: "/scenarios/airway-obstruction" },
-    { label: "추락(높은 곳) 기준 해당", href: "/scenarios/fall-from-height" },
+    { label: "다발성·중증손상 기준 해당", href: "/scenarios/multi-trauma" },
   ],
   steps: [
     {
-      id: "height-check",
-      severity: "info",
-      title: "추락 기준 해당 여부 확인",
+      id: "height-criteria",
+      severity: "critical",
+      title: "추락 판정 기준",
       detail:
-        "성인 6m(건물 2층 높이) 이상, 소아(15세 미만) 3m(또는 아이 키의 2~3배) 이상 높은 곳에서 떨어진 경우면 '추락(높은 곳)' 시나리오를 따른다.",
+        "성인 6m(건물 2층 높이) 이상, 소아(15세 미만) 3m(또는 아이 키의 2~3배) 이상 낙하 시 추락으로 판단한다. 기준 미만이면 '낙상(넘어짐)' 시나리오를 따른다.",
+      sourceRef: "현장 판단 기준",
+      pediatricDetail:
+        "소아(15세 미만)는 3m(또는 아이 키의 2~3배) 이상 낙하 시 추락으로 판단한다. 기준 미만이면 '낙상(넘어짐)' 시나리오를 따른다.",
+      pediatricSourceRef: "현장 판단 기준",
+    },
+    {
+      id: "high-energy-warning",
+      severity: "critical",
+      title: "고에너지 손상 가능성 염두",
+      detail:
+        "추락 기준을 충족하면 겉보기 손상이 가볍더라도 다발성·중증손상에 준해 평가한다. 착지면(단단한 바닥 등)·착지 자세(머리·발부터 등)도 함께 확인한다.",
       sourceRef: "현장 판단 기준",
     },
     {
@@ -33,7 +44,7 @@ const fallTrauma: Scenario = {
       id: "c-collar",
       severity: "critical",
       title: "경추보호대(C-collar) 착용",
-      condition: "의식저하 · 후경부 압통 · 경부강직 시",
+      detail: "추락 기준 충족 시 증상 유무와 관계없이 우선 착용을 고려한다.",
       sourceRef: "p.334, p.337",
     },
     {
@@ -55,7 +66,6 @@ const fallTrauma: Scenario = {
       id: "spine-immobilize",
       severity: "urgent",
       title: "척추 고정",
-      condition: "척추 압통 또는 사지 운동·감각 이상 시",
       detail: "통나무 굴리기로 긴 척추고정판·분리형들것에 고정.",
       sourceRef: "p.340",
     },
@@ -83,4 +93,4 @@ const fallTrauma: Scenario = {
   ],
 };
 
-export default fallTrauma;
+export default fallFromHeight;

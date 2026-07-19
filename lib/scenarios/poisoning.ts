@@ -40,9 +40,9 @@ const poisoning: Scenario = {
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "혈역학적 불안정, 쇼크 징후 시",
-      detail: "하지 거상 후 생리식염수·젖산링거액 300mL 투여, 쇼크 지속 시 1L까지.",
+      detail: "하지 거상 후 생리식염수·하트만용액 300mL 투여, 쇼크 지속 시 1L까지.",
       sourceRef: "p.391",
-      pediatricDetail: "하지 거상 후 생리식염수·젖산링거액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
+      pediatricDetail: "하지 거상 후 생리식염수·하트만용액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
     },
     {
       id: "no-forced-vomit",

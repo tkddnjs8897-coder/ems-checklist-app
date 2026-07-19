@@ -33,9 +33,9 @@ const heatIllness: Scenario = {
       id: "iv-fluid",
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
-      detail: "경구 투여 금지, 생리식염수·젖산링거액 300mL 투여, 쇼크 지속 시 1L까지.",
+      detail: "경구 투여 금지, 생리식염수·하트만용액 300mL 투여, 쇼크 지속 시 1L까지.",
       sourceRef: "p.385",
-      pediatricDetail: "경구 투여 금지, 생리식염수·젖산링거액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
+      pediatricDetail: "경구 투여 금지, 생리식염수·하트만용액 5mL/kg 투여, 쇼크 지속 시 10mL/kg까지.",
     },
     {
       id: "cooling",

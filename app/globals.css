@@ -23,6 +23,11 @@ html {
   touch-action: manipulation;
 }
 
+/* 현장 가독성을 위한 글씨 크게 보기 옵션. rem 기반 크기가 전부 비례해서 커진다. */
+html.text-scale-lg {
+  font-size: 115%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

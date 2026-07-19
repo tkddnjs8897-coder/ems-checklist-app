@@ -27,9 +27,9 @@ const syncope: Scenario = {
       severity: "urgent",
       title: "정맥로 확보 · 수액 투여",
       condition: "저혈량성 쇼크 등 필요 시",
-      detail: "생리식염수·젖산링거액 300mL, 쇼크 지속 시 1L까지 추가.",
+      detail: "생리식염수·하트만용액 300mL, 쇼크 지속 시 1L까지 추가.",
       sourceRef: "p.237",
-      pediatricDetail: "생리식염수·젖산링거액 5mL/kg, 쇼크 지속 시 10mL/kg까지 추가.",
+      pediatricDetail: "생리식염수·하트만용액 5mL/kg, 쇼크 지속 시 10mL/kg까지 추가.",
     },
     {
       id: "head-neck",
