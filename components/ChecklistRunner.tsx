@@ -171,6 +171,11 @@ export function ChecklistRunner({ scenario, age }: { scenario: Scenario; age: Ag
       </div>
 
       <div className={`rounded-2xl border p-5 ${style.card}`}>
+        {step.phase && (
+          <div className="text-[11px] font-medium mb-1.5 inline-block px-2 py-0.5 rounded-full bg-amber-950/60 text-amber-300 border border-amber-700">
+            {step.phase}
+          </div>
+        )}
         <div className={`text-xs font-medium mb-1.5 ${style.text}`}>{style.label}</div>
         <div className="text-xl font-medium leading-snug mb-2 text-slate-50">{title}</div>
         {condition && (
