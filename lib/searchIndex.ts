@@ -6,7 +6,6 @@ export interface SearchableScenario {
   label: string;
   group: "arrest" | "disease" | "trauma" | "childbirth";
   status: "ready" | "planned";
-  aliases?: string[];
 }
 
 // 카탈로그에 없는 심정지(홈 화면 별도 진입점)도 검색 대상에 포함시킨다.
@@ -22,6 +21,5 @@ export const searchableScenarios: SearchableScenario[] = [
     label: c.label,
     group: c.group,
     status: readyScenarioIds.has(c.slug) ? ("ready" as const) : ("planned" as const),
-    aliases: c.aliases,
   })),
 ];

@@ -18,8 +18,6 @@ export interface ChecklistStep {
   pediatricDetail?: string;
   pediatricCondition?: string;
   pediatricSourceRef?: string;
-  /** 분만처럼 "전/중/후" 단계 구분이 의미 있는 시나리오에서, 이 항목이 속한 단계 표시용 (예: "분만 진행 중", "분만 후 처치 · 산모") */
-  phase?: string;
 }
 
 export interface QuickJump {

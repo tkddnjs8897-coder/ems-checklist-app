@@ -2,8 +2,6 @@ export interface CatalogEntry {
   slug: string;
   label: string;
   group: "disease" | "trauma" | "childbirth";
-  /** 말은 다르지만 같은 상황을 가리키는 동의어/구어 표현. 검색 시 label과 동일하게 매칭된다. */
-  aliases?: string[];
 }
 
 // 출처: 119구급대원 현장응급처치 표준지침(2023년 개정본)
@@ -15,7 +13,7 @@ export const catalog: CatalogEntry[] = [
   { slug: "non-trauma-shock", label: "비외상성 쇼크", group: "disease" },
   { slug: "dyspnea", label: "호흡곤란", group: "disease" },
   { slug: "hyperventilation", label: "과호흡", group: "disease" },
-  { slug: "chest-pain", label: "흉통", group: "disease", aliases: ["가슴통증", "가슴 아픔", "흉부통증"] },
+  { slug: "chest-pain", label: "흉통", group: "disease" },
   { slug: "bradycardia", label: "서맥", group: "disease" },
   { slug: "tachycardia", label: "빈맥", group: "disease" },
   { slug: "syncope", label: "실신", group: "disease" },
@@ -27,7 +25,7 @@ export const catalog: CatalogEntry[] = [
   { slug: "hypoglycemia", label: "저혈당 의증", group: "disease" },
   { slug: "fever", label: "고열", group: "disease" },
   { slug: "sepsis-shock", label: "패혈증의심", group: "disease" },
-  { slug: "abdominal-pain", label: "복통", group: "disease", aliases: ["배아픔", "배통증"] },
+  { slug: "abdominal-pain", label: "복통", group: "disease" },
   { slug: "nausea-vomiting", label: "오심·구토", group: "disease" },
   { slug: "diarrhea", label: "설사", group: "disease" },
   { slug: "dizziness", label: "어지러움", group: "disease" },
@@ -40,7 +38,7 @@ export const catalog: CatalogEntry[] = [
   { slug: "multi-trauma", label: "다발성·중증손상", group: "trauma" },
   { slug: "head-injury", label: "머리손상", group: "trauma" },
   { slug: "spine-injury", label: "척추·척수손상", group: "trauma" },
-  { slug: "chest-injury", label: "흉부손상", group: "trauma", aliases: ["가슴외상", "가슴손상"] },
+  { slug: "chest-injury", label: "흉부손상", group: "trauma" },
   { slug: "abdomen-pelvis-injury", label: "복부·골반손상", group: "trauma" },
   { slug: "limb-injury", label: "사지손상", group: "trauma" },
   { slug: "blunt-injury", label: "그 밖의 둔상", group: "trauma" },
