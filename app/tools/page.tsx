@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, Baby, Brain, Flame, Gauge } from "lucide-react";
+import { Activity, Baby, Brain, Droplet, Flame, Gauge } from "lucide-react";
 import { BackHeader } from "@/components/BackHeader";
 import { parseAge } from "@/lib/age";
 import { tools } from "@/lib/tools";
@@ -10,6 +10,7 @@ const TOOL_ICONS: Record<string, typeof Brain> = {
   burn: Flame,
   cpc: Activity,
   vitals: Gauge,
+  fluid: Droplet,
 };
 
 export default async function ToolsPage({

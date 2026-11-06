@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { User, Baby, ChevronRight, Calculator } from "lucide-react";
+import { User, Baby, ChevronRight, Calculator, FlaskConical } from "lucide-react";
 
 export default function AgeGatePage() {
   return (
@@ -44,6 +44,14 @@ export default function AgeGatePage() {
       >
         <Calculator size={22} className="text-slate-300 shrink-0" />
         <span className="text-sm font-medium text-slate-100">계산기 (GCS·아프가·화상면적·CPC)</span>
+      </Link>
+
+      <Link
+        href="/demo"
+        className="flex items-center gap-3 w-full p-4 mt-3 rounded-2xl border border-violet-700/60 bg-violet-950/30 active:bg-violet-900/40"
+      >
+        <FlaskConical size={22} className="text-violet-300 shrink-0" />
+        <span className="text-sm font-medium text-violet-100">통합 플랫폼 프로토타입 예시</span>
       </Link>
 
       <div className="mt-auto pt-10">

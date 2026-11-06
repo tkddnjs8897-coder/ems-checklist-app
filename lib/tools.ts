@@ -10,6 +10,7 @@ export const tools: ToolEntry[] = [
   { slug: "burn", label: "화상 체표면적", description: "화상 부위를 선택해 체표면적(%) 계산" },
   { slug: "cpc", label: "CPC 등급", description: "신경학적 기능 수준 확인" },
   { slug: "vitals", label: "정상 활력징후", description: "나이대별 맥박·호흡수·체온·혈압 참고표" },
+  { slug: "fluid", label: "소아 수액량", description: "체중 기반 수액 투여량 · 방울수(gtt) 계산" },
 ];
 
 export function findTool(slug: string): ToolEntry | undefined {
