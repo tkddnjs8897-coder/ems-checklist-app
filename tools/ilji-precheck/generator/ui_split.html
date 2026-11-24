@@ -1,0 +1,93 @@
+<main id="x-split" class="s-wrap">
+
+  <!-- ① 랜덤 일지 만들기 -->
+  <section class="s-panel" id="p1">
+    <div class="s-head"><span class="s-num">1</span><div><h2>랜덤 일지 만들기</h2><p>시험용 가상 일지를 PDF나 엑셀로 만듭니다</p></div></div>
+    <div class="s-form">
+      <label class="s-f">구성
+        <select id="p1-kind"><option value="both">일지 + 심뇌혈관 + 중증외상 (3종 세트)</option><option value="log">일지 1개</option><option value="log+trauma">일지 + 중증외상</option><option value="log+cv">일지 + 심뇌혈관</option><option value="trauma">중증외상 1개</option><option value="cv">심뇌혈관 1개</option></select></label>
+      <label class="s-f">오류 수준
+        <select id="p1-level"><option value="0">정상 (오류 없음, 지적 0건이어야 함)</option><option value="1" selected>보통 (문서당 1~2곳)</option><option value="2">많이 (문서당 3~5곳)</option><option value="3">최대 (가능한 오류를 모두)</option></select></label>
+      <div class="s-two">
+        <label class="s-f">몇 건<input type="number" id="p1-n" value="5" min="1" max="500"></label>
+        <label class="s-f">시드 (비우면 무작위)<input type="text" id="p1-seed" placeholder="예: 12345" inputmode="numeric"></label>
+      </div>
+      <fieldset class="s-out"><legend>받을 파일</legend>
+        <label><input type="checkbox" id="p1-pdf" checked> 구급일지 PDF <small>(정답표 포함)</small></label>
+        <label><input type="checkbox" id="p1-xv" checked> 값 엑셀</label>
+        <label><input type="checkbox" id="p1-xe"> 오류 위치 엑셀(0/1)</label>
+      </fieldset>
+      <button class="s-btn primary" id="p1-go" type="button">만들기</button>
+    </div>
+    <div id="p1-prog" class="s-prog" hidden><div class="s-bar"><div id="p1-bar"></div></div><div id="p1-plabel" class="s-sub"></div></div>
+    <div id="p1-done" class="s-done" hidden>
+      <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p1-title"></span></div>
+      <div id="p1-sub" class="s-sub"></div>
+      <div class="s-btns"><button id="p1-save" class="s-btn primary" type="button">받기</button><button id="p1-again" class="s-btn" type="button">닫기</button></div>
+    </div>
+    <p id="p1-err" class="s-err" role="alert"></p>
+    <p class="s-hint">두 개 이상 고르면 ZIP 하나로 받습니다. 같은 시드면 같은 일지가 나옵니다. PDF는 100건까지.</p>
+  </section>
+
+  <!-- ② 엑셀 → PDF -->
+  <section class="s-panel" id="p2">
+    <div class="s-head"><span class="s-num">2</span><div><h2>엑셀 → PDF</h2><p>값 엑셀이든 오류 엑셀(0/1)이든 알아서 구분합니다</p></div></div>
+    <label id="p2-drop" class="s-drop" tabindex="0">
+      <input type="file" id="p2-file" accept=".xlsx,.xls,.csv" hidden>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
+      <span class="s-drop-t">엑셀 파일을 여기에 놓으세요</span>
+      <span class="s-drop-s">또는 <b>파일 선택</b> · .xlsx</span>
+    </label>
+    <div id="p2-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p2-sv" type="button">값 엑셀</button><button class="s-link" id="p2-se" type="button">오류 엑셀(0/1)</button></div>
+    <div id="p2-card" class="s-card" hidden>
+      <div class="s-top">
+        <div class="s-who"><div id="p2-name" class="s-fname"></div><div id="p2-kind" class="s-kind"></div><div id="p2-info" class="s-sub"></div></div>
+        <button id="p2-again" class="s-x" type="button">다른 파일</button>
+      </div>
+      <div id="p2-opts" class="s-opts" hidden>
+        <label><input type="checkbox" id="p2-exc" checked> 18.환자직업(2025 서식에서 삭제된 칸) 제외</label>
+        <span class="s-seg"><label><input type="radio" name="p2-out" value="pdf" checked> PDF 한 개</label><label><input type="radio" name="p2-out" value="zip"> 센터별 ZIP</label></span>
+      </div>
+      <div id="p2-prog" class="s-prog" hidden><div class="s-bar"><div id="p2-bar"></div></div><div id="p2-plabel" class="s-sub"></div></div>
+      <div id="p2-done" class="s-done" hidden>
+        <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p2-title"></span></div>
+        <div id="p2-sub" class="s-sub"></div>
+        <div class="s-btns"><button id="p2-save" class="s-btn primary" type="button">PDF 받기</button><button id="p2-open" class="s-btn" type="button">새 창에서 보기</button></div>
+      </div>
+    </div>
+    <p id="p2-err" class="s-err" role="alert"></p>
+    <details class="s-help"><summary>어떤 엑셀을 올리나요?</summary><ul>
+      <li><b>오류 엑셀(0/1)</b> — 구급정보시스템 월별 파일(앞 4열 + 항목별 0·1). 1로 표시된 칸이 <b>빨갛게 표시된 일지 PDF</b>가 됩니다. 환자 값은 비웁니다.</li>
+      <li><b>값 엑셀</b> — 시트 이름이 일지값·심뇌혈관·중증외상. ①에서 만들거나 ③에서 꺼낸 파일입니다. 값이 채워진 PDF가 됩니다.</li></ul></details>
+  </section>
+
+  <!-- ③ PDF → 엑셀 -->
+  <section class="s-panel" id="p3">
+    <div class="s-head"><span class="s-num">3</span><div><h2>PDF → 엑셀</h2><p>구급일지·세부상황표 PDF의 값을 엑셀로 꺼냅니다</p></div></div>
+    <label id="p3-drop" class="s-drop" tabindex="0">
+      <input type="file" id="p3-file" accept=".pdf" multiple hidden>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
+      <span class="s-drop-t">PDF 파일을 여기에 놓으세요</span>
+      <span class="s-drop-s">여러 개도 한꺼번에 · 또는 <b>파일 선택</b></span>
+    </label>
+    <div id="p3-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p3-sp" type="button">연습용 PDF(3종 세트)</button></div>
+    <div id="p3-card" class="s-card" hidden>
+      <div class="s-top">
+        <div class="s-who"><div id="p3-name" class="s-fname"></div><div id="p3-kind" class="s-kind"></div><div id="p3-info" class="s-sub"></div></div>
+        <button id="p3-again" class="s-x" type="button">다른 파일</button>
+      </div>
+      <div id="p3-prog" class="s-prog" hidden><div class="s-bar"><div id="p3-bar"></div></div><div id="p3-plabel" class="s-sub"></div></div>
+      <div id="p3-done" class="s-done" hidden>
+        <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p3-title"></span></div>
+        <div id="p3-sub" class="s-sub"></div>
+        <div class="s-btns"><button id="p3-save" class="s-btn primary" type="button">엑셀 받기</button></div>
+      </div>
+    </div>
+    <p id="p3-err" class="s-err" role="alert"></p>
+    <details class="s-help"><summary>어떤 PDF를 읽나요?</summary><ul>
+      <li>구급정보시스템 출력 <b>구급활동일지(2025 서식)</b>, <b>심뇌혈관</b>·<b>중증외상 세부상황표</b>, 그리고 ①이나 ②가 만든 PDF.</li>
+      <li>스캔·사진 PDF와 다른 서식은 읽지 못하고, 읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적습니다.</li>
+      <li>꺼낸 엑셀을 ②에 올리면 같은 서식의 PDF가 다시 만들어집니다.</li></ul></details>
+  </section>
+</main>
+<div class="s-foot"><button class="s-link" id="x-orig" type="button">원래 생성기 화면(문서별 미리보기·정답표) 열기</button></div>

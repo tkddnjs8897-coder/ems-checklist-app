@@ -26,95 +26,142 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222a3d;color:#fff;padding:8px 16px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s}#toast.show{opacity:1}
 </style>
 <style>
-/* ===== 변환기 화면 (PC 기준) ===== */
+/* ===== 변환기 화면 (PC, 한 화면 세 부분) ===== */
 .x-head{display:flex;flex-direction:column;gap:2px;padding:14px 28px}
 .x-head p{margin:0}
 .x-brand{display:flex;align-items:center;gap:10px;color:var(--accent)}.x-brand h1{color:var(--ink);font-size:22px}
-.x-tabs{display:flex;gap:4px;padding:0 24px;background:var(--panel);border-bottom:1px solid var(--line)}
-.x-tab{font:inherit;font-weight:700;background:none;border:0;border-bottom:3px solid transparent;color:var(--muted);padding:12px 18px;cursor:pointer}
-.x-tab:hover{color:var(--ink)}.x-tab[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
-.h-wrap{max-width:860px;margin:0 auto;padding:40px 20px 80px;display:block}
-.h-h{margin:0 0 6px;font-size:30px;letter-spacing:-.02em;text-align:center}
-.h-p{margin:0 0 26px;text-align:center;color:var(--muted);font-size:16px}
-.h-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:280px;border:2px dashed var(--line);border-radius:18px;background:var(--panel);color:var(--accent);cursor:pointer;text-align:center;transition:border-color .15s,background .15s}
-.h-drop:hover,.h-drop:focus-visible,.h-drop.over{border-color:var(--accent);background:var(--panel2)}
-.h-drop-t{font-size:22px;font-weight:800;color:var(--ink)}.h-drop-s{font-size:15px;color:var(--muted)}.h-drop-s b{color:var(--accent);text-decoration:underline}
-.h-samples{display:flex;gap:14px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:18px;color:var(--muted);font-size:14px}
-.h-link{font:inherit;background:none;border:0;color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;padding:2px 4px}
-.h-err{margin:14px 0 0;color:var(--err);font-weight:700;text-align:center;min-height:1.4em}
-.h-card{margin-top:8px;padding:26px 28px;border:1px solid var(--line);border-radius:18px;background:var(--panel);display:grid;gap:18px}
-.h-top{display:flex;align-items:center;gap:16px;color:var(--accent)}.h-who{flex:1;min-width:0;color:var(--ink)}
-.h-fname{font-weight:800;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.h-kind{color:var(--ok);font-weight:800;margin-top:2px}.h-sub{font-size:13px;color:var(--muted)}
-.h-x{font:inherit;font-size:13px;background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;color:var(--muted);cursor:pointer}.h-x:hover{color:var(--ink);border-color:var(--accent)}
-.h-goal{margin:0;color:var(--muted)}
-.h-opts{display:flex;gap:24px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:10px;background:var(--panel2);font-size:14px}
-.h-opts label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}.h-seg{display:inline-flex;gap:16px}
-.h-prog{display:grid;gap:6px}.h-bar{height:10px;border-radius:999px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}.h-bar>div{height:100%;width:0;background:var(--accent);transition:width .1s}
-.h-done{display:grid;gap:16px}.h-ok{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:var(--ok)}
-.h-btns{display:flex;gap:10px;flex-wrap:wrap}
-.h-btn{font:inherit;font-weight:800;font-size:16px;padding:12px 26px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}.h-btn:hover{border-color:var(--accent)}
-.h-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-size:18px;padding:14px 36px}
-.h-help{margin-top:28px;color:var(--muted);font-size:14px}.h-help summary{cursor:pointer;font-weight:700}.h-help ul{margin:10px 0 0;padding-left:1.3em;display:grid;gap:6px}
-#h-frame iframe{height:640px}
+.s-wrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:1500px;margin:0 auto;padding:22px 24px 12px;align-items:stretch}
+@media (max-width:1050px){.s-wrap{grid-template-columns:minmax(0,1fr)}}
+.s-panel{display:flex;flex-direction:column;gap:14px;padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--panel);transition:border-color .15s,box-shadow .15s;min-height:560px}
+.s-panel.over{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.s-head{display:flex;gap:12px;align-items:center}.s-head h2{margin:0;font-size:19px}.s-head p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.s-num{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;font-weight:800;display:grid;place-items:center}
+.s-form{display:grid;gap:12px}
+.s-f{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:700}
+.s-f select,.s-f input{font:inherit;font-size:14px;font-weight:600;color:var(--ink);padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);width:100%}
+.s-two{display:grid;grid-template-columns:90px 1fr;gap:10px}
+.s-out{margin:0;padding:10px 14px 12px;border:1px solid var(--line);border-radius:10px;display:grid;gap:8px;font-size:14px}.s-out legend{font-size:13px;font-weight:700;color:var(--muted);padding:0 6px}
+.s-out label,.s-opts label{display:flex;align-items:center;gap:8px;cursor:pointer}.s-out small{color:var(--muted)}
+.s-btn{font:inherit;font-weight:800;font-size:16px;padding:12px 24px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}.s-btn:hover{border-color:var(--accent)}
+.s-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.s-btn:disabled{opacity:.6;cursor:default}
+.s-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:210px;padding:16px;border:2px dashed var(--line);border-radius:14px;background:var(--panel2);color:var(--accent);cursor:pointer;text-align:center;transition:border-color .15s}
+.s-drop:hover,.s-drop:focus-visible,.s-panel.over .s-drop{border-color:var(--accent)}
+.s-drop-t{font-size:18px;font-weight:800;color:var(--ink)}.s-drop-s{font-size:13px;color:var(--muted)}.s-drop-s b{color:var(--accent);text-decoration:underline}
+.s-samples{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.s-link{font:inherit;font-size:13px;background:none;border:0;color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;padding:2px 2px}.s-link:disabled{opacity:.5}
+.s-card{display:grid;gap:14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.s-top{display:flex;gap:12px;align-items:flex-start}.s-who{flex:1;min-width:0}
+.s-fname{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.s-kind{color:var(--ok);font-weight:800;margin-top:2px}.s-sub{font-size:12px;color:var(--muted)}
+.s-x{font:inherit;font-size:12px;background:none;border:1px solid var(--line);border-radius:8px;padding:5px 10px;color:var(--muted);cursor:pointer;flex:none}.s-x:hover{color:var(--ink);border-color:var(--accent)}
+.s-opts{display:grid;gap:8px;font-size:13px;padding:10px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line)}.s-seg{display:flex;gap:16px}
+.s-prog{display:grid;gap:6px}.s-bar{height:10px;border-radius:999px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}.s-bar>div{height:100%;width:0;background:var(--accent);transition:width .1s}
+.s-done{display:grid;gap:10px}.s-ok{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;color:var(--ok)}
+.s-btns{display:flex;gap:8px;flex-wrap:wrap}
+.s-err{margin:0;color:var(--err);font-weight:700;font-size:14px;min-height:1.2em}
+.s-hint{margin:auto 0 0;font-size:12px;color:var(--muted)}
+.s-help{margin-top:auto;font-size:13px;color:var(--muted)}.s-help summary{cursor:pointer;font-weight:700}.s-help ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:6px}
+.s-foot{max-width:1500px;margin:0 auto;padding:6px 28px 40px}
 </style>
 </head>
 <body>
 <header class="x-head">
   <div class="x-brand"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6M12 11v6"/></svg><h1>구급일지 변환기</h1></div>
-  <p>엑셀 ↔ 구급활동일지·세부상황표 PDF · 모든 처리는 이 PC 안에서만 · 값은 모두 가상입니다</p>
+  <p>랜덤 일지 만들기 · 엑셀 → PDF · PDF → 엑셀 · 모든 처리는 이 PC 안에서만 · 값은 모두 가상입니다</p>
 </header>
-<nav class="x-tabs" role="tablist" aria-label="기능">
-  <button class="x-tab" role="tab" data-tab="home" aria-selected="true" type="button">엑셀 변환</button>
-  <button class="x-tab" role="tab" data-tab="gen" aria-selected="false" type="button">시험용 일지 만들기</button>
-</nav>
 
-<main id="x-home" class="h-wrap">
-  <h2 class="h-h">엑셀 파일을 놓으면 구급일지 PDF가 됩니다</h2>
-  <p class="h-p">구급일지 값 엑셀이든 월별 오류 엑셀(0/1)이든 종류를 알아서 구분해서 바꿔 드려요.</p>
+<main id="x-split" class="s-wrap">
 
-  <label id="h-drop" class="h-drop" tabindex="0">
-    <input type="file" id="h-file" accept=".xlsx,.xls,.csv" hidden>
-    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
-    <span class="h-drop-t">엑셀 파일을 여기에 끌어다 놓으세요</span>
-    <span class="h-drop-s">또는 <b>파일 선택</b> · .xlsx</span>
-  </label>
-
-  <div id="h-samples" class="h-samples">
-    <span>파일이 없으면 연습용으로 받아서 올려 보세요</span>
-    <button class="h-link" id="h-sample-v" type="button">연습용 값 엑셀</button>
-    <button class="h-link" id="h-sample-e" type="button">연습용 오류 엑셀(0/1)</button>
-  </div>
-
-  <p id="h-error" class="h-err" role="alert"></p>
-
-  <section id="h-card" class="h-card" hidden>
-    <div class="h-top">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/></svg>
-      <div class="h-who"><div id="h-file-name" class="h-fname"></div><div id="h-kind" class="h-kind"></div><div id="h-kind-sub" class="h-sub"></div></div>
-      <button id="h-reset" class="h-x" type="button">다른 파일</button>
+  <!-- ① 랜덤 일지 만들기 -->
+  <section class="s-panel" id="p1">
+    <div class="s-head"><span class="s-num">1</span><div><h2>랜덤 일지 만들기</h2><p>시험용 가상 일지를 PDF나 엑셀로 만듭니다</p></div></div>
+    <div class="s-form">
+      <label class="s-f">구성
+        <select id="p1-kind"><option value="both">일지 + 심뇌혈관 + 중증외상 (3종 세트)</option><option value="log">일지 1개</option><option value="log+trauma">일지 + 중증외상</option><option value="log+cv">일지 + 심뇌혈관</option><option value="trauma">중증외상 1개</option><option value="cv">심뇌혈관 1개</option></select></label>
+      <label class="s-f">오류 수준
+        <select id="p1-level"><option value="0">정상 (오류 없음, 지적 0건이어야 함)</option><option value="1" selected>보통 (문서당 1~2곳)</option><option value="2">많이 (문서당 3~5곳)</option><option value="3">최대 (가능한 오류를 모두)</option></select></label>
+      <div class="s-two">
+        <label class="s-f">몇 건<input type="number" id="p1-n" value="5" min="1" max="500"></label>
+        <label class="s-f">시드 (비우면 무작위)<input type="text" id="p1-seed" placeholder="예: 12345" inputmode="numeric"></label>
+      </div>
+      <fieldset class="s-out"><legend>받을 파일</legend>
+        <label><input type="checkbox" id="p1-pdf" checked> 구급일지 PDF <small>(정답표 포함)</small></label>
+        <label><input type="checkbox" id="p1-xv" checked> 값 엑셀</label>
+        <label><input type="checkbox" id="p1-xe"> 오류 위치 엑셀(0/1)</label>
+      </fieldset>
+      <button class="s-btn primary" id="p1-go" type="button">만들기</button>
     </div>
-    <p id="h-goal" class="h-goal"></p>
-    <div id="h-opts" class="h-opts" hidden>
-      <label><input type="checkbox" id="h-exc" checked> 18.환자직업(2025 서식에서 삭제된 칸)은 제외</label>
-      <span class="h-seg"><label><input type="radio" name="h-out" value="pdf" checked> PDF 한 개</label><label><input type="radio" name="h-out" value="zip"> 센터별 ZIP</label></span>
+    <div id="p1-prog" class="s-prog" hidden><div class="s-bar"><div id="p1-bar"></div></div><div id="p1-plabel" class="s-sub"></div></div>
+    <div id="p1-done" class="s-done" hidden>
+      <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p1-title"></span></div>
+      <div id="p1-sub" class="s-sub"></div>
+      <div class="s-btns"><button id="p1-save" class="s-btn primary" type="button">받기</button><button id="p1-again" class="s-btn" type="button">닫기</button></div>
     </div>
-    <div id="h-prog" class="h-prog" hidden><div class="h-bar"><div id="h-prog-bar"></div></div><div id="h-prog-label" class="h-sub"></div></div>
-    <div id="h-done" class="h-done" hidden>
-      <div class="h-ok"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="h-done-title"></span></div>
-      <div class="h-btns"><button id="h-save" class="h-btn primary" type="button">받기</button><button id="h-preview" class="h-btn" type="button">미리보기</button><button id="h-again" class="h-btn" type="button">다른 파일 변환</button></div>
-      <div id="h-frame"></div>
-    </div>
+    <p id="p1-err" class="s-err" role="alert"></p>
+    <p class="s-hint">두 개 이상 고르면 ZIP 하나로 받습니다. 같은 시드면 같은 일지가 나옵니다. PDF는 100건까지.</p>
   </section>
 
-  <details class="h-help"><summary>어떤 엑셀을 올리나요?</summary>
-    <ul>
-      <li><b>월별 오류 엑셀(0/1)</b> — 구급정보시스템에서 받은 파일(앞 4열 + 항목별 0·1). 1로 표시된 칸이 <b>빨갛게 표시된 구급일지 PDF</b>가 됩니다. 환자 값은 들어 있지 않아 비워 둡니다.</li>
-      <li><b>구급일지 값 엑셀</b> — 시트 이름이 일지값·심뇌혈관·중증외상인 파일. 값이 채워진 <b>구급일지·세부상황표 PDF</b>가 됩니다.</li>
-      <li>값 엑셀은 <b>시험용 일지 만들기</b> 탭에서 만들 수 있습니다.</li>
-    </ul>
-  </details>
+  <!-- ② 엑셀 → PDF -->
+  <section class="s-panel" id="p2">
+    <div class="s-head"><span class="s-num">2</span><div><h2>엑셀 → PDF</h2><p>값 엑셀이든 오류 엑셀(0/1)이든 알아서 구분합니다</p></div></div>
+    <label id="p2-drop" class="s-drop" tabindex="0">
+      <input type="file" id="p2-file" accept=".xlsx,.xls,.csv" hidden>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
+      <span class="s-drop-t">엑셀 파일을 여기에 놓으세요</span>
+      <span class="s-drop-s">또는 <b>파일 선택</b> · .xlsx</span>
+    </label>
+    <div id="p2-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p2-sv" type="button">값 엑셀</button><button class="s-link" id="p2-se" type="button">오류 엑셀(0/1)</button></div>
+    <div id="p2-card" class="s-card" hidden>
+      <div class="s-top">
+        <div class="s-who"><div id="p2-name" class="s-fname"></div><div id="p2-kind" class="s-kind"></div><div id="p2-info" class="s-sub"></div></div>
+        <button id="p2-again" class="s-x" type="button">다른 파일</button>
+      </div>
+      <div id="p2-opts" class="s-opts" hidden>
+        <label><input type="checkbox" id="p2-exc" checked> 18.환자직업(2025 서식에서 삭제된 칸) 제외</label>
+        <span class="s-seg"><label><input type="radio" name="p2-out" value="pdf" checked> PDF 한 개</label><label><input type="radio" name="p2-out" value="zip"> 센터별 ZIP</label></span>
+      </div>
+      <div id="p2-prog" class="s-prog" hidden><div class="s-bar"><div id="p2-bar"></div></div><div id="p2-plabel" class="s-sub"></div></div>
+      <div id="p2-done" class="s-done" hidden>
+        <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p2-title"></span></div>
+        <div id="p2-sub" class="s-sub"></div>
+        <div class="s-btns"><button id="p2-save" class="s-btn primary" type="button">PDF 받기</button><button id="p2-open" class="s-btn" type="button">새 창에서 보기</button></div>
+      </div>
+    </div>
+    <p id="p2-err" class="s-err" role="alert"></p>
+    <details class="s-help"><summary>어떤 엑셀을 올리나요?</summary><ul>
+      <li><b>오류 엑셀(0/1)</b> — 구급정보시스템 월별 파일(앞 4열 + 항목별 0·1). 1로 표시된 칸이 <b>빨갛게 표시된 일지 PDF</b>가 됩니다. 환자 값은 비웁니다.</li>
+      <li><b>값 엑셀</b> — 시트 이름이 일지값·심뇌혈관·중증외상. ①에서 만들거나 ③에서 꺼낸 파일입니다. 값이 채워진 PDF가 됩니다.</li></ul></details>
+  </section>
+
+  <!-- ③ PDF → 엑셀 -->
+  <section class="s-panel" id="p3">
+    <div class="s-head"><span class="s-num">3</span><div><h2>PDF → 엑셀</h2><p>구급일지·세부상황표 PDF의 값을 엑셀로 꺼냅니다</p></div></div>
+    <label id="p3-drop" class="s-drop" tabindex="0">
+      <input type="file" id="p3-file" accept=".pdf" multiple hidden>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 18v-6M9.5 14.5 12 12l2.5 2.5"/></svg>
+      <span class="s-drop-t">PDF 파일을 여기에 놓으세요</span>
+      <span class="s-drop-s">여러 개도 한꺼번에 · 또는 <b>파일 선택</b></span>
+    </label>
+    <div id="p3-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p3-sp" type="button">연습용 PDF(3종 세트)</button></div>
+    <div id="p3-card" class="s-card" hidden>
+      <div class="s-top">
+        <div class="s-who"><div id="p3-name" class="s-fname"></div><div id="p3-kind" class="s-kind"></div><div id="p3-info" class="s-sub"></div></div>
+        <button id="p3-again" class="s-x" type="button">다른 파일</button>
+      </div>
+      <div id="p3-prog" class="s-prog" hidden><div class="s-bar"><div id="p3-bar"></div></div><div id="p3-plabel" class="s-sub"></div></div>
+      <div id="p3-done" class="s-done" hidden>
+        <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p3-title"></span></div>
+        <div id="p3-sub" class="s-sub"></div>
+        <div class="s-btns"><button id="p3-save" class="s-btn primary" type="button">엑셀 받기</button></div>
+      </div>
+    </div>
+    <p id="p3-err" class="s-err" role="alert"></p>
+    <details class="s-help"><summary>어떤 PDF를 읽나요?</summary><ul>
+      <li>구급정보시스템 출력 <b>구급활동일지(2025 서식)</b>, <b>심뇌혈관</b>·<b>중증외상 세부상황표</b>, 그리고 ①이나 ②가 만든 PDF.</li>
+      <li>스캔·사진 PDF와 다른 서식은 읽지 못하고, 읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적습니다.</li>
+      <li>꺼낸 엑셀을 ②에 올리면 같은 서식의 PDF가 다시 만들어집니다.</li></ul></details>
+  </section>
 </main>
+<div class="s-foot"><button class="s-link" id="x-orig" type="button">원래 생성기 화면(문서별 미리보기·정답표) 열기</button></div>
 
 <main id="x-gen" hidden>
   <div class="card warnbox">모든 이름·전화·주소·일련번호는 가상 값입니다. 만들어지는 PDF는 시험 목적 외에 쓰지 마세요. 의학적으로 정확한 사례가 아니라 "대략 상황에 맞게" 만든 값입니다.</div>
@@ -131,17 +178,6 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
     <div class="row"><b id="out-title"></b><span style="flex:1"></span><button class="btn sm" id="zip" type="button">PDF 전체 ZIP 받기</button><button class="btn sm" id="key" type="button">정답표 받기</button></div>
     <div id="docs" style="display:grid;gap:12px"></div>
     <details open><summary style="cursor:pointer;font-weight:700">정답표 (일부러 넣은 오류 전체)</summary><pre id="keytext"></pre></details>
-  </section>
-  <section class="card" id="x-card" style="display:grid;gap:12px">
-    <div><b>엑셀로 내보내기</b>
-      <p class="hint">위 설정(구성·오류 수준·시드)대로 일지 세트 N건(시드, 시드+1, …)을 만들어 엑셀로 받습니다. 받은 엑셀은 <b>엑셀 변환</b> 탭에 올리면 PDF가 됩니다.</p></div>
-    <div class="row">
-      <label class="f">건수<input type="number" id="x-n" value="10" min="1" max="500" style="width:90px"></label>
-      <button class="btn" id="x-val" type="button">일지 값 엑셀 받기</button>
-      <button class="btn" id="x-err" type="button">일부러 넣은 오류 위치 엑셀(0/1) 받기</button>
-    </div>
-    <p class="hint">오류 위치 엑셀은 일부러 넣은 오류가 바꾼 칸을 1로 표시한 시험용 정답입니다(구급정보시스템의 완결성 점검과는 기준이 다릅니다).</p>
-    <div class="hint" id="x-state"></div>
   </section>
 </main>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -1130,10 +1166,27 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   }
 
   /* ================= 서식 한 쪽 읽기·만들기 ================= */
+  function pageContent(doc, page) {
+    const arr = page.node.normalizedEntries().Contents, parts = [];
+    arr.asArray().forEach((ref) => {
+      const st = doc.context.lookup(ref), u = st instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(st).decode() : st.getContents();
+      parts.push(u, new Uint8Array([10]));
+    });
+    const out = new Uint8Array(parts.reduce((a, u) => a + u.length, 0)); let o = 0;
+    parts.forEach((u) => { out.set(u, o); o += u.length; });
+    return out;
+  }
   async function openStream(bytes, pageNo) {
-    const doc = await PDFLib.PDFDocument.load(bytes), page = doc.getPage(pageNo || 0), s = page.node.Contents();
-    const raw = s instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(s).decode() : (s.getContents ? s.getContents() : s.contents);
-    return new Stream(raw, page.getHeight());
+    const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true }), page = doc.getPage(pageNo || 0);
+    return new Stream(pageContent(doc, page), page.getHeight());
+  }
+  // 서식 PDF 의 글자 덩어리 수와 제목으로 어느 서식인지 알아본다 (다르면 null)
+  function identify(S) {
+    const n = S.runs.length, t = (i) => (S.runs[i] ? S.runs[i].text : '');
+    if (n === 288 && clean(t(3)) === '구급활동일지') return 'log';
+    if (n === 268 && t(0).indexOf('심뇌혈관질환자') >= 0) return 'cv';
+    if (n === 234 && t(0).indexOf('중증외상환자') >= 0) return 'trauma';
+    return null;
   }
   function readMeta(key, S) {
     const D = FORMS[key], id = clean(S.runs[D.serial].text);
@@ -1273,38 +1326,40 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 
   /* ================= 일지 세트 만들기 → 엑셀 ================= */
   // generate({kind, level, seed}) 와 같은 순서로 난수를 써서 같은 문서를 만들고, 일부러 넣은 오류가 바꾼 칸을 기록한다
-  async function genSet(kind, level, seed) {
+  async function genSet(kind, level, seed, withPdf) {
     const rng = makeRng(seed), cfg = CONFIGS[kind] || CONFIGS.both;
     const c = makeCtx(rng, cfg.scen || (rng() < 0.5 ? 'stroke' : 'trauma')), want = cfg.want, chosen = {};
     want.forEach((f) => { chosen[f] = pickErrors(c, ERR[f], level); });
     Object.values(chosen).flat().forEach((e) => e.plan && e.plan(c, level));
-    const out = { seed, serial: c.serial, forms: {}, notes: [] };
+    const out = { seed, serial: c.serial, forms: {}, notes: [], pdfs: [] };
     for (const f of want) {
       const t = await loadTemplate(FORMS[f].tpl);
       const refs = f === 'log' ? buildLog(t.stream, c) : f === 'cv' ? buildCv(t.stream, c) : buildTrauma(t.stream, c), flags = new Set();
       chosen[f].forEach((e) => {
         const before = t.stream.runs.map((r) => r.text), detail = e.apply(t.stream, refs, c);
         t.stream.runs.forEach((r, i) => { if (r.text !== before[i] && FORMS[f].runField[i]) flags.add(FORMS[f].runField[i].item); });
-        out.notes.push([FORMS[f].title, e.desc + ': ' + detail]);
+        out.notes.push([FORMS[f].title, e.desc, detail, (e.rules.length && e.id === 'L-SP' ? Array(c.spBad).fill('SP') : e.rules).join('·')]);
       });
       out.forms[f] = { meta: readMeta(f, t.stream), values: readValues(f, t.stream), flags };
+      if (withPdf) out.pdfs.push({ name: '랜덤_' + ({ log: '일지', cv: '심뇌혈관', trauma: '중증외상' })[f] + '_' + c.serial + '.pdf', bytes: await finishZ(t) });
     }
     return out;
   }
-  async function genMany(n, kind, level, base, onProgress) {
+  async function genMany(n, kind, level, base, onProgress, withPdf) {
     const sets = [];
-    for (let k = 0; k < n; k++) { if (onProgress) onProgress(k + 1, n); await tick(); sets.push(await genSet(kind, level, base + k)); }
+    for (let k = 0; k < n; k++) { if (onProgress) onProgress(k + 1, n); await tick(); sets.push(await genSet(kind, level, base + k, withPdf)); }
     return sets;
   }
   const colWidths = (cols) => cols.map((c) => ({ wch: Math.min(40, Math.max(8, String(c).length * 2)) }));
   const xlsxBlob = (wb) => new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-  function valuesWorkbook(sets) {
+  // rowsBy: { log: [{meta, values}], cv: [...], trauma: [...] }
+  function workbookFromRows(rowsBy, badPages) {
     const wb = XLSX.utils.book_new();
     FORM_KEYS.forEach((k) => {
-      const rows = sets.filter((s) => s.forms[k]); if (!rows.length) return;
+      const rows = rowsBy[k] || []; if (!rows.length) return;
       const cols = META.concat(FORMS[k].F.map((f) => f[0]));
-      const aoa = [cols].concat(rows.map((s) => { const x = s.forms[k]; return [x.meta.id || s.serial, x.meta.station, x.meta.center, x.meta.time].concat(FORMS[k].F.map((f) => x.values[f[0]])); }));
+      const aoa = [cols].concat(rows.map((x) => [x.meta.id, x.meta.station, x.meta.center, x.meta.time].concat(FORMS[k].F.map((f) => x.values[f[0]]))));
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
       XLSX.utils.book_append_sheet(wb, ws, FORMS[k].sheet);
     });
@@ -1315,9 +1370,19 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       ['· 같은 이름이 한 칸 안에 두 번 나오면 두 번째부터 이름 뒤에 #2 를 붙입니다.'],
       ['· 25.활력징후는 시각 | 혈압 | 맥박 | 호흡 | 체온 | SpO2 순서이고 | 로 나눕니다.'],
       ['· 27.발생시간 앞에 추정 이 있으면 추정 체크입니다. 27.평가소견은 줄바꿈 없이 써도 알아서 3줄로 나눕니다.'],
-      ['· 열에 없는 칸(서식 고정 글자 등)은 서식 기본 모양 그대로 나옵니다. 이 파일의 값은 모두 가상입니다.']];
+      ['· 열에 없는 칸(서식 고정 글자 등)은 서식 기본 모양 그대로 나옵니다. 이 엑셀을 [엑셀 → PDF]에 올리면 같은 서식의 PDF가 됩니다.']];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(help), '안내');
+    if (badPages && badPages.length) {
+      const bad = [['파일', '쪽', '이유']].concat(badPages.map((x) => [x.file, x.page, x.reason]));
+      const bs = XLSX.utils.aoa_to_sheet(bad); bs['!cols'] = [{ wch: 40 }, { wch: 6 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, bs, '읽지못한쪽');
+    }
     return wb;
+  }
+  function valuesWorkbook(sets) {
+    const rowsBy = {};
+    FORM_KEYS.forEach((k) => { rowsBy[k] = sets.filter((s) => s.forms[k]).map((s) => ({ meta: Object.assign({}, s.forms[k].meta, { id: s.forms[k].meta.id || s.serial }), values: s.forms[k].values })); });
+    return workbookFromRows(rowsBy);
   }
   function errorWorkbook(sets) {
     const wb = XLSX.utils.book_new();
@@ -1328,9 +1393,9 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
       XLSX.utils.book_append_sheet(wb, ws, FORMS[k].errSheet);
     });
-    const notes = [['보고서번호', '서식', '일부러 넣은 오류']];
-    sets.forEach((s) => { if (s.notes.length) s.notes.forEach((n) => notes.push([s.serial, n[0], n[1]])); else notes.push([s.serial, '', '(없음)']); });
-    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 90 }];
+    const notes = [['보고서번호', '서식', '일부러 넣은 오류', '내용', '기대 지적']];
+    sets.forEach((s) => { if (s.notes.length) s.notes.forEach((n) => notes.push([s.serial, n[0], n[1], n[2], n[3]])); else notes.push([s.serial, '', '(없음)', '', '']); });
+    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 40 }, { wch: 60 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ns, '정답표');
     return wb;
   }
@@ -1340,120 +1405,192 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  /* ================= 첫 화면 (파일을 놓으면 알아서 변환) ================= */
-  const H = { book: null, kind: null, file: null, result: null, busy: false };
-  const show = (sel, on) => { $(sel).hidden = !on; };
+
+  /* ================= 화면: 한 화면 세 부분 (① 만들기 · ② 엑셀 → PDF · ③ PDF → 엑셀) ================= */
   const mb = (n) => (n / 1048576).toFixed(1) + 'MB';
-  function setProgress(label, n, total) {
-    $('#h-prog-label').textContent = label + ' ' + n + ' / ' + total;
-    $('#h-prog-bar').style.width = Math.round((n / total) * 100) + '%';
+  const xlsxBytes = (wb) => new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
+  function panel(id) {
+    const q = (k) => $('#' + id + '-' + k), P = { id, q, res: null, busy: false };
+    P.err = (m) => { q('err').textContent = m || ''; };
+    P.prog = (label, n, t) => { q('prog').hidden = false; q('plabel').textContent = label + ' ' + n + ' / ' + t; q('bar').style.width = Math.round((n / t) * 100) + '%'; };
+    P.endProg = () => { q('prog').hidden = true; };
+    P.done = (title, sub, res) => { P.res = res; q('title').textContent = title; q('sub').textContent = sub || ''; q('done').hidden = false; };
+    P.clear = () => { P.res = null; P.err(''); q('done').hidden = true; q('prog').hidden = true; };
+    q('save').addEventListener('click', () => { if (P.res) saveBlob(P.res.name, P.res.blob); });
+    if (q('open')) q('open').addEventListener('click', () => { if (P.res) window.open(URL.createObjectURL(P.res.blob), '_blank'); });
+    return P;
   }
-  function resetHome() {
-    H.book = H.kind = H.file = H.result = null;
-    show('#h-card', false); show('#h-drop', true); show('#h-samples', true); $('#h-error').textContent = '';
-    $('#h-file').value = '';
+  // 파일 놓기: 부분(section) 전체가 놓는 자리
+  function wireDrop(id, onFiles, multiple) {
+    const sec = $('#' + id), drop = $('#' + id + '-drop'), input = $('#' + id + '-file');
+    input.addEventListener('change', () => { if (input.files.length) onFiles([...input.files]); input.value = ''; });
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    ['dragenter', 'dragover'].forEach((ev) => sec.addEventListener(ev, (e) => { e.preventDefault(); sec.classList.add('over'); }));
+    sec.addEventListener('dragleave', (e) => { if (!sec.contains(e.relatedTarget)) sec.classList.remove('over'); });
+    sec.addEventListener('drop', (e) => {
+      e.preventDefault(); sec.classList.remove('over');
+      const fs = [...e.dataTransfer.files]; if (fs.length) onFiles(multiple ? fs : fs.slice(0, 1));
+    });
   }
-  function describe(book, kind) {
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
+  /* ---------- ② 엑셀 → PDF ---------- */
+  const P2 = panel('p2');
+  let B2 = { book: null, kind: null };
+  function p2Reset() {
+    B2 = { book: null, kind: null }; P2.clear();
+    P2.q('card').hidden = true; P2.q('drop').hidden = false; P2.q('samples').hidden = false;
+  }
+  function p2Describe(book, kind) {
     const parts = [], ids = new Set(), centers = new Set();
     FORM_KEYS.forEach((k) => {
       const sh = book[kind === 'values' ? FORMS[k].sheet : FORMS[k].errSheet]; if (!sh) return;
       sh.rows.forEach((r) => { ids.add(String(r[0]).trim()); if (String(r[2]).trim()) centers.add(String(r[2]).trim()); });
       parts.push(FORMS[k].title + ' ' + sh.rows.length + '건');
     });
-    return { text: parts.join(' · '), ids: ids.size, centers: centers.size };
+    return parts.join(' · ') + (centers.size ? ' · 센터 ' + centers.size + '곳' : '');
   }
-  async function convert() {
-    if (H.busy || !H.book) return;
-    H.busy = true; H.result = null;
-    show('#h-done', false); show('#h-prog', true); $('#h-error').textContent = '';
+  async function p2Convert() {
+    if (P2.busy || !B2.book) return;
+    P2.busy = true; P2.clear();
     try {
-      const zip = H.kind === 'errors' && $('input[name=h-out]:checked').value === 'zip';
-      const pages = H.kind === 'values' ? valuePages(H.book) : errorPages(H.book, $('#h-exc').checked);
-      if (!pages.length) throw new Error(H.kind === 'errors' ? '수정이 필요한 일지(1로 표시된 칸)가 없습니다' : '변환할 줄이 없습니다');
-      const prog = (n, total) => setProgress('만드는 중', n, total);
+      const zip = B2.kind === 'errors' && $('input[name=p2-out]:checked').value === 'zip';
+      const pages = B2.kind === 'values' ? valuePages(B2.book) : errorPages(B2.book, $('#p2-exc').checked);
+      if (!pages.length) throw new Error(B2.kind === 'errors' ? '수정이 필요한 일지(1로 표시된 칸)가 없습니다' : '변환할 줄이 없습니다');
+      let res;
       if (zip) {
         const files = [], groups = byCenter(pages); let done = 0;
-        for (const c of Object.keys(groups).sort()) { files.push({ name: '일지_' + c + '.pdf', data: await buildPdf(groups[c], (n) => setProgress('만드는 중', done + n, pages.length)) }); done += groups[c].length; }
-        const blob = makeZip(files);
-        H.result = { name: 'ilji_marked_by_center.zip', blob, pages: pages.length, note: '센터 ' + files.length + '곳' };
+        for (const c of Object.keys(groups).sort()) { files.push({ name: '일지_' + c + '.pdf', data: await buildPdf(groups[c], (n) => P2.prog('만드는 중', done + n, pages.length)) }); done += groups[c].length; }
+        res = { name: 'ilji_marked_by_center.zip', blob: makeZip(files) };
+        P2.done(pages.length + '쪽 완성 · ' + mb(res.blob.size), '센터 ' + files.length + '곳의 PDF를 ZIP으로 묶었어요', res);
       } else {
-        const bytes = await buildPdf(pages, prog), blob = new Blob([bytes], { type: 'application/pdf' });
-        H.result = { name: H.kind === 'values' ? 'ilji_from_excel.pdf' : 'ilji_marked.pdf', blob, pages: pages.length, note: '' };
+        const bytes = await buildPdf(pages, (n, t) => P2.prog('만드는 중', n, t));
+        res = { name: B2.kind === 'values' ? 'ilji_from_excel.pdf' : 'ilji_marked.pdf', blob: new Blob([bytes], { type: 'application/pdf' }) };
+        P2.done(pages.length + '쪽 완성 · ' + mb(res.blob.size), B2.kind === 'values' ? '값을 채운 구급일지·세부상황표예요' : '고칠 칸이 빨갛게 표시됐어요', res);
       }
-      $('#h-done-title').textContent = H.result.pages + '쪽 완성' + (H.result.note ? ' · ' + H.result.note : '') + ' · ' + mb(H.result.blob.size);
-      $('#h-preview').hidden = H.result.name.endsWith('.zip'); $('#h-frame').innerHTML = '';
-      show('#h-done', true);
-    } catch (e) { console.error(e); $('#h-error').textContent = '만들지 못했습니다: ' + (e.message || e); }
-    show('#h-prog', false); H.busy = false;
+      P2.q('open').hidden = res.name.endsWith('.zip');
+    } catch (e) { console.error(e); P2.err('만들지 못했습니다: ' + (e.message || e)); }
+    P2.endProg(); P2.busy = false;
   }
-  async function handleFile(file) {
-    if (H.busy || !file) return;
-    resetHome(); H.file = file; $('#h-error').textContent = '';
+  async function p2Handle(files) {
+    if (P2.busy || !files.length) return;
+    p2Reset();
+    const file = files[0];
+    if (/\.pdf$/i.test(file.name)) { P2.err('PDF는 오른쪽 ③ 부분에 놓아 주세요. 이 부분은 엑셀 전용입니다'); return; }
     try {
-      H.book = await readBook(file); H.kind = detect(H.book);
-      if (!H.kind) throw new Error('이 엑셀이 어떤 종류인지 알아보지 못했습니다. 구급일지 값 엑셀(시트 이름: 일지값) 또는 월별 오류 엑셀(앞 4열 + 항목별 0/1)을 올려 주세요');
-    } catch (e) { $('#h-error').textContent = e.message || String(e); return; }
-    const d = describe(H.book, H.kind), values = H.kind === 'values';
-    $('#h-file-name').textContent = file.name;
-    $('#h-kind').textContent = values ? '값 엑셀로 인식했어요' : '오류 엑셀(0/1)로 인식했어요';
-    $('#h-kind-sub').textContent = d.text + (d.centers ? ' · 센터 ' + d.centers + '곳' : '');
-    $('#h-goal').textContent = values ? '→ 구급일지·세부상황표 PDF로 바꿉니다 (값을 채운 일지)' : '→ 고칠 칸이 빨갛게 표시된 구급일지 PDF로 바꿉니다 (환자 값은 비움)';
-    show('#h-opts', !values); show('#h-drop', false); show('#h-samples', false); show('#h-card', true);
-    await convert();
-  }
-  function bindHome() {
-    const drop = $('#h-drop'), input = $('#h-file');
-    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
-    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
-    ['dragenter', 'dragover'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); drop.classList.add('over'); }));
-    ['dragleave', 'drop'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); if (ev === 'drop' || e.target === document.documentElement || e.relatedTarget === null) drop.classList.remove('over'); }));
-    window.addEventListener('drop', (e) => { if ($('#x-home').hidden) return; const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && !H.busy) handleFile(f); });
-    $('#h-reset').addEventListener('click', resetHome);
-    $('#h-again').addEventListener('click', resetHome);
-    $('#h-exc').addEventListener('change', () => { if (H.kind === 'errors') convert(); });
-    document.querySelectorAll('input[name=h-out]').forEach((r) => r.addEventListener('change', () => { if (H.kind === 'errors') convert(); }));
-    $('#h-save').addEventListener('click', () => { if (H.result) saveBlob(H.result.name, H.result.blob); });
-    $('#h-preview').addEventListener('click', () => {
-      const box = $('#h-frame'); if (box.firstChild) { box.innerHTML = ''; return; }
-      const f = document.createElement('iframe'); f.src = URL.createObjectURL(H.result.blob); box.appendChild(f);
-    });
-    // 연습용 파일: 값 엑셀 / 오류 엑셀 3건
-    const sample = (which) => async () => {
-      const sets = await genMany(3, 'both', 1, 20260101);
-      saveBlob(which === 'values' ? 'ilji_sample_values.xlsx' : 'ilji_sample_errors.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
-    };
-    $('#h-sample-v').addEventListener('click', sample('values'));
-    $('#h-sample-e').addEventListener('click', sample('errors'));
-    // 탭
-    document.querySelectorAll('.x-tab').forEach((t) => t.addEventListener('click', () => {
-      document.querySelectorAll('.x-tab').forEach((x) => x.setAttribute('aria-selected', String(x === t)));
-      $('#x-home').hidden = t.dataset.tab !== 'home'; $('#x-gen').hidden = t.dataset.tab !== 'gen';
-    }));
+      B2.book = await readBook(file); B2.kind = detect(B2.book);
+      if (!B2.kind) throw new Error('이 엑셀이 어떤 종류인지 알아보지 못했습니다. 값 엑셀(시트 이름: 일지값) 또는 월별 오류 엑셀(앞 4열 + 항목별 0/1)을 올려 주세요');
+    } catch (e) { P2.err(e.message || String(e)); B2.book = null; return; }
+    const values = B2.kind === 'values';
+    P2.q('name').textContent = file.name;
+    P2.q('kind').textContent = values ? '값 엑셀로 인식했어요' : '오류 엑셀(0/1)로 인식했어요';
+    P2.q('info').textContent = p2Describe(B2.book, B2.kind);
+    P2.q('opts').hidden = values;
+    P2.q('drop').hidden = true; P2.q('samples').hidden = true; P2.q('card').hidden = false;
+    await p2Convert();
   }
 
-  /* ================= 시험용 일지 만들기 탭의 엑셀 내보내기 ================= */
-  let busy = false;
-  async function run(fn) {
-    if (busy) return; busy = true;
-    try { await fn(); } catch (e) { console.error(e); $('#x-state').textContent = '만들지 못했습니다: ' + (e.message || e); }
-    busy = false;
+  /* ---------- ③ PDF → 엑셀 ---------- */
+  const P3 = panel('p3');
+  function p3Reset() { P3.clear(); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
+  async function p3Handle(files) {
+    if (P3.busy || !files.length) return;
+    p3Reset();
+    const pdfs = files.filter((f) => /\.pdf$/i.test(f.name));
+    if (!pdfs.length) { P3.err('PDF 파일을 놓아 주세요. 엑셀은 가운데 ② 부분에 놓습니다'); return; }
+    P3.busy = true;
+    P3.q('name').textContent = pdfs.length === 1 ? pdfs[0].name : pdfs[0].name + ' 외 ' + (pdfs.length - 1) + '개';
+    P3.q('kind').textContent = 'PDF ' + pdfs.length + '개를 읽는 중';
+    P3.q('info').textContent = '';
+    P3.q('drop').hidden = true; P3.q('samples').hidden = true; P3.q('card').hidden = false;
+    try {
+      const rowsBy = { log: [], cv: [], trauma: [] }, bad = [], docs = [];
+      for (const f of pdfs) {
+        try { docs.push({ f, doc: await PDFLib.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true }) }); }
+        catch (e) { bad.push({ file: f.name, page: '', reason: 'PDF를 열지 못했습니다' }); }
+      }
+      const total = docs.reduce((a, d) => a + d.doc.getPageCount(), 0); let n = 0;
+      for (const { f, doc } of docs) {
+        for (let i = 0; i < doc.getPageCount(); i++) {
+          P3.prog('읽는 중', ++n, total); await tick();
+          try {
+            const page = doc.getPage(i), S = new Stream(pageContent(doc, page), page.getHeight()), form = identify(S);
+            if (!form) { bad.push({ file: f.name, page: i + 1, reason: '알려진 서식이 아닙니다(글자 덩어리 ' + S.runs.length + '개). 구급정보시스템 출력본이나 이 변환기가 만든 PDF만 읽습니다' }); continue; }
+            rowsBy[form].push({ meta: readMeta(form, S), values: readValues(form, S) });
+          } catch (e) { bad.push({ file: f.name, page: i + 1, reason: '읽지 못했습니다: ' + (e.message || e) }); }
+        }
+      }
+      const read = rowsBy.log.length + rowsBy.cv.length + rowsBy.trauma.length;
+      if (!read) throw new Error('읽을 수 있는 구급일지·세부상황표가 없습니다. ' + (bad[0] ? bad[0].reason : ''));
+      const blob = new Blob([xlsxBytes(workbookFromRows(rowsBy, bad))], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      P3.q('kind').textContent = '구급일지 PDF로 인식했어요';
+      P3.q('info').textContent = '일지 ' + rowsBy.log.length + ' · 심뇌혈관 ' + rowsBy.cv.length + ' · 중증외상 ' + rowsBy.trauma.length + (bad.length ? ' · 읽지 못한 쪽 ' + bad.length : '');
+      P3.done(read + '쪽을 엑셀로 옮겼어요 · ' + mb(blob.size), bad.length ? '읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적었어요' : '시트: 일지값 · 심뇌혈관 · 중증외상', { name: 'ilji_values_from_pdf.xlsx', blob });
+    } catch (e) { console.error(e); P3.err(e.message || String(e)); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
+    P3.endProg(); P3.busy = false;
   }
-  function exportExcel(which) {
-    return run(async () => {
-      const n = Math.max(1, Math.min(500, +$('#x-n').value || 1)), kind = $('#kind').value, level = +$('#level').value, s = $('#seed').value.trim();
-      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
-      const sets = await genMany(n, kind, level, base, (k, t) => { $('#x-state').textContent = '일지 만드는 중 ' + k + ' / ' + t; });
-      saveBlob(which === 'values' ? 'ilji_values.xlsx' : 'ilji_errors_01.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
-      $('#x-state').textContent = n + '건(시드 ' + base + '~)을 저장했습니다. 값 엑셀과 오류 엑셀은 같은 시드·구성·오류 수준이면 같은 일지입니다. 첫 화면에 올리면 PDF가 됩니다.';
+
+  /* ---------- ① 랜덤 일지 만들기 ---------- */
+  const P1 = panel('p1');
+  function keyText(sets) {
+    const L = [];
+    sets.forEach((s) => {
+      L.push('[정답표] 시드 ' + s.seed + ' · 일련번호 ' + s.serial, '교정지에 이 PDF들을 올렸을 때, 아래 "일부러 넣은 오류"가 모두 지적으로 나와야 합니다.', '');
+      Object.keys(s.forms).forEach((k) => {
+        L.push('■ ' + FORMS[k].title);
+        const ns = s.notes.filter((x) => x[0] === FORMS[k].title);
+        if (!ns.length) L.push('  (일부러 넣은 오류 없음 — 정상본: 지적 0건이어야 함)');
+        ns.forEach((x) => L.push('  - ' + x[1] + ': ' + x[2] + '  → 기대 지적: ' + x[3]));
+        L.push('');
+      });
     });
+    return L.join('\n');
   }
-  $('#x-val').addEventListener('click', () => exportExcel('values'));
-  $('#x-err').addEventListener('click', () => exportExcel('errors'));
-  bindHome();
+  async function p1Make() {
+    if (P1.busy) return;
+    P1.busy = true; P1.clear();
+    try {
+      const wantPdf = $('#p1-pdf').checked, xv = $('#p1-xv').checked, xe = $('#p1-xe').checked;
+      if (!(wantPdf || xv || xe)) throw new Error('받을 파일을 하나 이상 고르세요');
+      const kind = $('#p1-kind').value, level = +$('#p1-level').value, s = $('#p1-seed').value.trim(), maxN = wantPdf ? 100 : 500;
+      const n = Math.max(1, Math.min(maxN, +$('#p1-n').value || 1)); $('#p1-n').value = n;
+      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
+      const sets = await genMany(n, kind, level, base, (k, t) => P1.prog('일지 세트 만드는 중', k, t), wantPdf);
+      const files = [];
+      if (wantPdf) { sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes }))); files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) }); }
+      if (xv) files.push({ name: 'ilji_values.xlsx', data: xlsxBytes(valuesWorkbook(sets)) });
+      if (xe) files.push({ name: 'ilji_errors_01.xlsx', data: xlsxBytes(errorWorkbook(sets)) });
+      const single = files.length === 1, res = single
+        ? { name: files[0].name, blob: new Blob([files[0].data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) }
+        : { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) };
+      P1.done('일지 세트 ' + n + '건 완성 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · ' + (single ? '엑셀 1개' : 'ZIP 안에 ' + files.length + '개 파일'), res);
+    } catch (e) { console.error(e); P1.err('만들지 못했습니다: ' + (e.message || e)); }
+    P1.endProg(); P1.busy = false;
+  }
+
+  /* ---------- 연습용 파일 · 연결 ---------- */
+  const sample = (fn) => async (ev) => { const b = ev.currentTarget; b.disabled = true; try { await fn(); } finally { b.disabled = false; } };
+  $('#p2-sv').addEventListener('click', sample(async () => saveBlob('ilji_sample_values.xlsx', xlsxBlob(valuesWorkbook(await genMany(3, 'both', 1, 20260101))))));
+  $('#p2-se').addEventListener('click', sample(async () => saveBlob('ilji_sample_errors.xlsx', xlsxBlob(errorWorkbook(await genMany(3, 'both', 1, 20260101))))));
+  $('#p3-sp').addEventListener('click', sample(async () => {
+    const sets = await genMany(1, 'both', 1, 20260101, null, true), out = await PDFLib.PDFDocument.create();
+    for (const p of sets[0].pdfs) out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(p.bytes), [0]))[0]);
+    saveBlob('ilji_sample.pdf', new Blob([await out.save()], { type: 'application/pdf' }));
+  }));
+  wireDrop('p2', p2Handle, false);
+  wireDrop('p3', p3Handle, true);
+  $('#p2-again').addEventListener('click', p2Reset);
+  $('#p3-again').addEventListener('click', p3Reset);
+  $('#p2-exc').addEventListener('change', p2Convert);
+  document.querySelectorAll('input[name=p2-out]').forEach((r) => r.addEventListener('change', p2Convert));
+  $('#p1-go').addEventListener('click', p1Make);
+  $('#p1-again').addEventListener('click', () => P1.clear());
+  const orig = $('#x-gen'), tog = $('#x-orig');
+  if (orig && tog) tog.addEventListener('click', () => { orig.hidden = !orig.hidden; tog.textContent = orig.hidden ? '원래 생성기 화면(문서별 미리보기·정답표) 열기' : '원래 생성기 화면 닫기'; });
 
   // 시험·확인용
-  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, handleFile, H };
+  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, workbookFromRows, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, identify, pageContent, p1Make, p2Handle, p3Handle };
 })();
 
 </script>

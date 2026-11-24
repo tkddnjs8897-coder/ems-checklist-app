@@ -294,10 +294,27 @@
   }
 
   /* ================= 서식 한 쪽 읽기·만들기 ================= */
+  function pageContent(doc, page) {
+    const arr = page.node.normalizedEntries().Contents, parts = [];
+    arr.asArray().forEach((ref) => {
+      const st = doc.context.lookup(ref), u = st instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(st).decode() : st.getContents();
+      parts.push(u, new Uint8Array([10]));
+    });
+    const out = new Uint8Array(parts.reduce((a, u) => a + u.length, 0)); let o = 0;
+    parts.forEach((u) => { out.set(u, o); o += u.length; });
+    return out;
+  }
   async function openStream(bytes, pageNo) {
-    const doc = await PDFLib.PDFDocument.load(bytes), page = doc.getPage(pageNo || 0), s = page.node.Contents();
-    const raw = s instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(s).decode() : (s.getContents ? s.getContents() : s.contents);
-    return new Stream(raw, page.getHeight());
+    const doc = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true }), page = doc.getPage(pageNo || 0);
+    return new Stream(pageContent(doc, page), page.getHeight());
+  }
+  // 서식 PDF 의 글자 덩어리 수와 제목으로 어느 서식인지 알아본다 (다르면 null)
+  function identify(S) {
+    const n = S.runs.length, t = (i) => (S.runs[i] ? S.runs[i].text : '');
+    if (n === 288 && clean(t(3)) === '구급활동일지') return 'log';
+    if (n === 268 && t(0).indexOf('심뇌혈관질환자') >= 0) return 'cv';
+    if (n === 234 && t(0).indexOf('중증외상환자') >= 0) return 'trauma';
+    return null;
   }
   function readMeta(key, S) {
     const D = FORMS[key], id = clean(S.runs[D.serial].text);
@@ -437,38 +454,40 @@
 
   /* ================= 일지 세트 만들기 → 엑셀 ================= */
   // generate({kind, level, seed}) 와 같은 순서로 난수를 써서 같은 문서를 만들고, 일부러 넣은 오류가 바꾼 칸을 기록한다
-  async function genSet(kind, level, seed) {
+  async function genSet(kind, level, seed, withPdf) {
     const rng = makeRng(seed), cfg = CONFIGS[kind] || CONFIGS.both;
     const c = makeCtx(rng, cfg.scen || (rng() < 0.5 ? 'stroke' : 'trauma')), want = cfg.want, chosen = {};
     want.forEach((f) => { chosen[f] = pickErrors(c, ERR[f], level); });
     Object.values(chosen).flat().forEach((e) => e.plan && e.plan(c, level));
-    const out = { seed, serial: c.serial, forms: {}, notes: [] };
+    const out = { seed, serial: c.serial, forms: {}, notes: [], pdfs: [] };
     for (const f of want) {
       const t = await loadTemplate(FORMS[f].tpl);
       const refs = f === 'log' ? buildLog(t.stream, c) : f === 'cv' ? buildCv(t.stream, c) : buildTrauma(t.stream, c), flags = new Set();
       chosen[f].forEach((e) => {
         const before = t.stream.runs.map((r) => r.text), detail = e.apply(t.stream, refs, c);
         t.stream.runs.forEach((r, i) => { if (r.text !== before[i] && FORMS[f].runField[i]) flags.add(FORMS[f].runField[i].item); });
-        out.notes.push([FORMS[f].title, e.desc + ': ' + detail]);
+        out.notes.push([FORMS[f].title, e.desc, detail, (e.rules.length && e.id === 'L-SP' ? Array(c.spBad).fill('SP') : e.rules).join('·')]);
       });
       out.forms[f] = { meta: readMeta(f, t.stream), values: readValues(f, t.stream), flags };
+      if (withPdf) out.pdfs.push({ name: '랜덤_' + ({ log: '일지', cv: '심뇌혈관', trauma: '중증외상' })[f] + '_' + c.serial + '.pdf', bytes: await finishZ(t) });
     }
     return out;
   }
-  async function genMany(n, kind, level, base, onProgress) {
+  async function genMany(n, kind, level, base, onProgress, withPdf) {
     const sets = [];
-    for (let k = 0; k < n; k++) { if (onProgress) onProgress(k + 1, n); await tick(); sets.push(await genSet(kind, level, base + k)); }
+    for (let k = 0; k < n; k++) { if (onProgress) onProgress(k + 1, n); await tick(); sets.push(await genSet(kind, level, base + k, withPdf)); }
     return sets;
   }
   const colWidths = (cols) => cols.map((c) => ({ wch: Math.min(40, Math.max(8, String(c).length * 2)) }));
   const xlsxBlob = (wb) => new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-  function valuesWorkbook(sets) {
+  // rowsBy: { log: [{meta, values}], cv: [...], trauma: [...] }
+  function workbookFromRows(rowsBy, badPages) {
     const wb = XLSX.utils.book_new();
     FORM_KEYS.forEach((k) => {
-      const rows = sets.filter((s) => s.forms[k]); if (!rows.length) return;
+      const rows = rowsBy[k] || []; if (!rows.length) return;
       const cols = META.concat(FORMS[k].F.map((f) => f[0]));
-      const aoa = [cols].concat(rows.map((s) => { const x = s.forms[k]; return [x.meta.id || s.serial, x.meta.station, x.meta.center, x.meta.time].concat(FORMS[k].F.map((f) => x.values[f[0]])); }));
+      const aoa = [cols].concat(rows.map((x) => [x.meta.id, x.meta.station, x.meta.center, x.meta.time].concat(FORMS[k].F.map((f) => x.values[f[0]]))));
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
       XLSX.utils.book_append_sheet(wb, ws, FORMS[k].sheet);
     });
@@ -479,9 +498,19 @@
       ['· 같은 이름이 한 칸 안에 두 번 나오면 두 번째부터 이름 뒤에 #2 를 붙입니다.'],
       ['· 25.활력징후는 시각 | 혈압 | 맥박 | 호흡 | 체온 | SpO2 순서이고 | 로 나눕니다.'],
       ['· 27.발생시간 앞에 추정 이 있으면 추정 체크입니다. 27.평가소견은 줄바꿈 없이 써도 알아서 3줄로 나눕니다.'],
-      ['· 열에 없는 칸(서식 고정 글자 등)은 서식 기본 모양 그대로 나옵니다. 이 파일의 값은 모두 가상입니다.']];
+      ['· 열에 없는 칸(서식 고정 글자 등)은 서식 기본 모양 그대로 나옵니다. 이 엑셀을 [엑셀 → PDF]에 올리면 같은 서식의 PDF가 됩니다.']];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(help), '안내');
+    if (badPages && badPages.length) {
+      const bad = [['파일', '쪽', '이유']].concat(badPages.map((x) => [x.file, x.page, x.reason]));
+      const bs = XLSX.utils.aoa_to_sheet(bad); bs['!cols'] = [{ wch: 40 }, { wch: 6 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, bs, '읽지못한쪽');
+    }
     return wb;
+  }
+  function valuesWorkbook(sets) {
+    const rowsBy = {};
+    FORM_KEYS.forEach((k) => { rowsBy[k] = sets.filter((s) => s.forms[k]).map((s) => ({ meta: Object.assign({}, s.forms[k].meta, { id: s.forms[k].meta.id || s.serial }), values: s.forms[k].values })); });
+    return workbookFromRows(rowsBy);
   }
   function errorWorkbook(sets) {
     const wb = XLSX.utils.book_new();
@@ -492,9 +521,9 @@
       const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
       XLSX.utils.book_append_sheet(wb, ws, FORMS[k].errSheet);
     });
-    const notes = [['보고서번호', '서식', '일부러 넣은 오류']];
-    sets.forEach((s) => { if (s.notes.length) s.notes.forEach((n) => notes.push([s.serial, n[0], n[1]])); else notes.push([s.serial, '', '(없음)']); });
-    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 90 }];
+    const notes = [['보고서번호', '서식', '일부러 넣은 오류', '내용', '기대 지적']];
+    sets.forEach((s) => { if (s.notes.length) s.notes.forEach((n) => notes.push([s.serial, n[0], n[1], n[2], n[3]])); else notes.push([s.serial, '', '(없음)', '', '']); });
+    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 40 }, { wch: 60 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, ns, '정답표');
     return wb;
   }
@@ -504,118 +533,190 @@
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  /* ================= 첫 화면 (파일을 놓으면 알아서 변환) ================= */
-  const H = { book: null, kind: null, file: null, result: null, busy: false };
-  const show = (sel, on) => { $(sel).hidden = !on; };
+
+  /* ================= 화면: 한 화면 세 부분 (① 만들기 · ② 엑셀 → PDF · ③ PDF → 엑셀) ================= */
   const mb = (n) => (n / 1048576).toFixed(1) + 'MB';
-  function setProgress(label, n, total) {
-    $('#h-prog-label').textContent = label + ' ' + n + ' / ' + total;
-    $('#h-prog-bar').style.width = Math.round((n / total) * 100) + '%';
+  const xlsxBytes = (wb) => new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
+  function panel(id) {
+    const q = (k) => $('#' + id + '-' + k), P = { id, q, res: null, busy: false };
+    P.err = (m) => { q('err').textContent = m || ''; };
+    P.prog = (label, n, t) => { q('prog').hidden = false; q('plabel').textContent = label + ' ' + n + ' / ' + t; q('bar').style.width = Math.round((n / t) * 100) + '%'; };
+    P.endProg = () => { q('prog').hidden = true; };
+    P.done = (title, sub, res) => { P.res = res; q('title').textContent = title; q('sub').textContent = sub || ''; q('done').hidden = false; };
+    P.clear = () => { P.res = null; P.err(''); q('done').hidden = true; q('prog').hidden = true; };
+    q('save').addEventListener('click', () => { if (P.res) saveBlob(P.res.name, P.res.blob); });
+    if (q('open')) q('open').addEventListener('click', () => { if (P.res) window.open(URL.createObjectURL(P.res.blob), '_blank'); });
+    return P;
   }
-  function resetHome() {
-    H.book = H.kind = H.file = H.result = null;
-    show('#h-card', false); show('#h-drop', true); show('#h-samples', true); $('#h-error').textContent = '';
-    $('#h-file').value = '';
+  // 파일 놓기: 부분(section) 전체가 놓는 자리
+  function wireDrop(id, onFiles, multiple) {
+    const sec = $('#' + id), drop = $('#' + id + '-drop'), input = $('#' + id + '-file');
+    input.addEventListener('change', () => { if (input.files.length) onFiles([...input.files]); input.value = ''; });
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    ['dragenter', 'dragover'].forEach((ev) => sec.addEventListener(ev, (e) => { e.preventDefault(); sec.classList.add('over'); }));
+    sec.addEventListener('dragleave', (e) => { if (!sec.contains(e.relatedTarget)) sec.classList.remove('over'); });
+    sec.addEventListener('drop', (e) => {
+      e.preventDefault(); sec.classList.remove('over');
+      const fs = [...e.dataTransfer.files]; if (fs.length) onFiles(multiple ? fs : fs.slice(0, 1));
+    });
   }
-  function describe(book, kind) {
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
+  /* ---------- ② 엑셀 → PDF ---------- */
+  const P2 = panel('p2');
+  let B2 = { book: null, kind: null };
+  function p2Reset() {
+    B2 = { book: null, kind: null }; P2.clear();
+    P2.q('card').hidden = true; P2.q('drop').hidden = false; P2.q('samples').hidden = false;
+  }
+  function p2Describe(book, kind) {
     const parts = [], ids = new Set(), centers = new Set();
     FORM_KEYS.forEach((k) => {
       const sh = book[kind === 'values' ? FORMS[k].sheet : FORMS[k].errSheet]; if (!sh) return;
       sh.rows.forEach((r) => { ids.add(String(r[0]).trim()); if (String(r[2]).trim()) centers.add(String(r[2]).trim()); });
       parts.push(FORMS[k].title + ' ' + sh.rows.length + '건');
     });
-    return { text: parts.join(' · '), ids: ids.size, centers: centers.size };
+    return parts.join(' · ') + (centers.size ? ' · 센터 ' + centers.size + '곳' : '');
   }
-  async function convert() {
-    if (H.busy || !H.book) return;
-    H.busy = true; H.result = null;
-    show('#h-done', false); show('#h-prog', true); $('#h-error').textContent = '';
+  async function p2Convert() {
+    if (P2.busy || !B2.book) return;
+    P2.busy = true; P2.clear();
     try {
-      const zip = H.kind === 'errors' && $('input[name=h-out]:checked').value === 'zip';
-      const pages = H.kind === 'values' ? valuePages(H.book) : errorPages(H.book, $('#h-exc').checked);
-      if (!pages.length) throw new Error(H.kind === 'errors' ? '수정이 필요한 일지(1로 표시된 칸)가 없습니다' : '변환할 줄이 없습니다');
-      const prog = (n, total) => setProgress('만드는 중', n, total);
+      const zip = B2.kind === 'errors' && $('input[name=p2-out]:checked').value === 'zip';
+      const pages = B2.kind === 'values' ? valuePages(B2.book) : errorPages(B2.book, $('#p2-exc').checked);
+      if (!pages.length) throw new Error(B2.kind === 'errors' ? '수정이 필요한 일지(1로 표시된 칸)가 없습니다' : '변환할 줄이 없습니다');
+      let res;
       if (zip) {
         const files = [], groups = byCenter(pages); let done = 0;
-        for (const c of Object.keys(groups).sort()) { files.push({ name: '일지_' + c + '.pdf', data: await buildPdf(groups[c], (n) => setProgress('만드는 중', done + n, pages.length)) }); done += groups[c].length; }
-        const blob = makeZip(files);
-        H.result = { name: 'ilji_marked_by_center.zip', blob, pages: pages.length, note: '센터 ' + files.length + '곳' };
+        for (const c of Object.keys(groups).sort()) { files.push({ name: '일지_' + c + '.pdf', data: await buildPdf(groups[c], (n) => P2.prog('만드는 중', done + n, pages.length)) }); done += groups[c].length; }
+        res = { name: 'ilji_marked_by_center.zip', blob: makeZip(files) };
+        P2.done(pages.length + '쪽 완성 · ' + mb(res.blob.size), '센터 ' + files.length + '곳의 PDF를 ZIP으로 묶었어요', res);
       } else {
-        const bytes = await buildPdf(pages, prog), blob = new Blob([bytes], { type: 'application/pdf' });
-        H.result = { name: H.kind === 'values' ? 'ilji_from_excel.pdf' : 'ilji_marked.pdf', blob, pages: pages.length, note: '' };
+        const bytes = await buildPdf(pages, (n, t) => P2.prog('만드는 중', n, t));
+        res = { name: B2.kind === 'values' ? 'ilji_from_excel.pdf' : 'ilji_marked.pdf', blob: new Blob([bytes], { type: 'application/pdf' }) };
+        P2.done(pages.length + '쪽 완성 · ' + mb(res.blob.size), B2.kind === 'values' ? '값을 채운 구급일지·세부상황표예요' : '고칠 칸이 빨갛게 표시됐어요', res);
       }
-      $('#h-done-title').textContent = H.result.pages + '쪽 완성' + (H.result.note ? ' · ' + H.result.note : '') + ' · ' + mb(H.result.blob.size);
-      $('#h-preview').hidden = H.result.name.endsWith('.zip'); $('#h-frame').innerHTML = '';
-      show('#h-done', true);
-    } catch (e) { console.error(e); $('#h-error').textContent = '만들지 못했습니다: ' + (e.message || e); }
-    show('#h-prog', false); H.busy = false;
+      P2.q('open').hidden = res.name.endsWith('.zip');
+    } catch (e) { console.error(e); P2.err('만들지 못했습니다: ' + (e.message || e)); }
+    P2.endProg(); P2.busy = false;
   }
-  async function handleFile(file) {
-    if (H.busy || !file) return;
-    resetHome(); H.file = file; $('#h-error').textContent = '';
+  async function p2Handle(files) {
+    if (P2.busy || !files.length) return;
+    p2Reset();
+    const file = files[0];
+    if (/\.pdf$/i.test(file.name)) { P2.err('PDF는 오른쪽 ③ 부분에 놓아 주세요. 이 부분은 엑셀 전용입니다'); return; }
     try {
-      H.book = await readBook(file); H.kind = detect(H.book);
-      if (!H.kind) throw new Error('이 엑셀이 어떤 종류인지 알아보지 못했습니다. 구급일지 값 엑셀(시트 이름: 일지값) 또는 월별 오류 엑셀(앞 4열 + 항목별 0/1)을 올려 주세요');
-    } catch (e) { $('#h-error').textContent = e.message || String(e); return; }
-    const d = describe(H.book, H.kind), values = H.kind === 'values';
-    $('#h-file-name').textContent = file.name;
-    $('#h-kind').textContent = values ? '값 엑셀로 인식했어요' : '오류 엑셀(0/1)로 인식했어요';
-    $('#h-kind-sub').textContent = d.text + (d.centers ? ' · 센터 ' + d.centers + '곳' : '');
-    $('#h-goal').textContent = values ? '→ 구급일지·세부상황표 PDF로 바꿉니다 (값을 채운 일지)' : '→ 고칠 칸이 빨갛게 표시된 구급일지 PDF로 바꿉니다 (환자 값은 비움)';
-    show('#h-opts', !values); show('#h-drop', false); show('#h-samples', false); show('#h-card', true);
-    await convert();
-  }
-  function bindHome() {
-    const drop = $('#h-drop'), input = $('#h-file');
-    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
-    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
-    ['dragenter', 'dragover'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); drop.classList.add('over'); }));
-    ['dragleave', 'drop'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); if (ev === 'drop' || e.target === document.documentElement || e.relatedTarget === null) drop.classList.remove('over'); }));
-    window.addEventListener('drop', (e) => { if ($('#x-home').hidden) return; const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && !H.busy) handleFile(f); });
-    $('#h-reset').addEventListener('click', resetHome);
-    $('#h-again').addEventListener('click', resetHome);
-    $('#h-exc').addEventListener('change', () => { if (H.kind === 'errors') convert(); });
-    document.querySelectorAll('input[name=h-out]').forEach((r) => r.addEventListener('change', () => { if (H.kind === 'errors') convert(); }));
-    $('#h-save').addEventListener('click', () => { if (H.result) saveBlob(H.result.name, H.result.blob); });
-    $('#h-preview').addEventListener('click', () => {
-      const box = $('#h-frame'); if (box.firstChild) { box.innerHTML = ''; return; }
-      const f = document.createElement('iframe'); f.src = URL.createObjectURL(H.result.blob); box.appendChild(f);
-    });
-    // 연습용 파일: 값 엑셀 / 오류 엑셀 3건
-    const sample = (which) => async () => {
-      const sets = await genMany(3, 'both', 1, 20260101);
-      saveBlob(which === 'values' ? 'ilji_sample_values.xlsx' : 'ilji_sample_errors.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
-    };
-    $('#h-sample-v').addEventListener('click', sample('values'));
-    $('#h-sample-e').addEventListener('click', sample('errors'));
-    // 탭
-    document.querySelectorAll('.x-tab').forEach((t) => t.addEventListener('click', () => {
-      document.querySelectorAll('.x-tab').forEach((x) => x.setAttribute('aria-selected', String(x === t)));
-      $('#x-home').hidden = t.dataset.tab !== 'home'; $('#x-gen').hidden = t.dataset.tab !== 'gen';
-    }));
+      B2.book = await readBook(file); B2.kind = detect(B2.book);
+      if (!B2.kind) throw new Error('이 엑셀이 어떤 종류인지 알아보지 못했습니다. 값 엑셀(시트 이름: 일지값) 또는 월별 오류 엑셀(앞 4열 + 항목별 0/1)을 올려 주세요');
+    } catch (e) { P2.err(e.message || String(e)); B2.book = null; return; }
+    const values = B2.kind === 'values';
+    P2.q('name').textContent = file.name;
+    P2.q('kind').textContent = values ? '값 엑셀로 인식했어요' : '오류 엑셀(0/1)로 인식했어요';
+    P2.q('info').textContent = p2Describe(B2.book, B2.kind);
+    P2.q('opts').hidden = values;
+    P2.q('drop').hidden = true; P2.q('samples').hidden = true; P2.q('card').hidden = false;
+    await p2Convert();
   }
 
-  /* ================= 시험용 일지 만들기 탭의 엑셀 내보내기 ================= */
-  let busy = false;
-  async function run(fn) {
-    if (busy) return; busy = true;
-    try { await fn(); } catch (e) { console.error(e); $('#x-state').textContent = '만들지 못했습니다: ' + (e.message || e); }
-    busy = false;
+  /* ---------- ③ PDF → 엑셀 ---------- */
+  const P3 = panel('p3');
+  function p3Reset() { P3.clear(); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
+  async function p3Handle(files) {
+    if (P3.busy || !files.length) return;
+    p3Reset();
+    const pdfs = files.filter((f) => /\.pdf$/i.test(f.name));
+    if (!pdfs.length) { P3.err('PDF 파일을 놓아 주세요. 엑셀은 가운데 ② 부분에 놓습니다'); return; }
+    P3.busy = true;
+    P3.q('name').textContent = pdfs.length === 1 ? pdfs[0].name : pdfs[0].name + ' 외 ' + (pdfs.length - 1) + '개';
+    P3.q('kind').textContent = 'PDF ' + pdfs.length + '개를 읽는 중';
+    P3.q('info').textContent = '';
+    P3.q('drop').hidden = true; P3.q('samples').hidden = true; P3.q('card').hidden = false;
+    try {
+      const rowsBy = { log: [], cv: [], trauma: [] }, bad = [], docs = [];
+      for (const f of pdfs) {
+        try { docs.push({ f, doc: await PDFLib.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true }) }); }
+        catch (e) { bad.push({ file: f.name, page: '', reason: 'PDF를 열지 못했습니다' }); }
+      }
+      const total = docs.reduce((a, d) => a + d.doc.getPageCount(), 0); let n = 0;
+      for (const { f, doc } of docs) {
+        for (let i = 0; i < doc.getPageCount(); i++) {
+          P3.prog('읽는 중', ++n, total); await tick();
+          try {
+            const page = doc.getPage(i), S = new Stream(pageContent(doc, page), page.getHeight()), form = identify(S);
+            if (!form) { bad.push({ file: f.name, page: i + 1, reason: '알려진 서식이 아닙니다(글자 덩어리 ' + S.runs.length + '개). 구급정보시스템 출력본이나 이 변환기가 만든 PDF만 읽습니다' }); continue; }
+            rowsBy[form].push({ meta: readMeta(form, S), values: readValues(form, S) });
+          } catch (e) { bad.push({ file: f.name, page: i + 1, reason: '읽지 못했습니다: ' + (e.message || e) }); }
+        }
+      }
+      const read = rowsBy.log.length + rowsBy.cv.length + rowsBy.trauma.length;
+      if (!read) throw new Error('읽을 수 있는 구급일지·세부상황표가 없습니다. ' + (bad[0] ? bad[0].reason : ''));
+      const blob = new Blob([xlsxBytes(workbookFromRows(rowsBy, bad))], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      P3.q('kind').textContent = '구급일지 PDF로 인식했어요';
+      P3.q('info').textContent = '일지 ' + rowsBy.log.length + ' · 심뇌혈관 ' + rowsBy.cv.length + ' · 중증외상 ' + rowsBy.trauma.length + (bad.length ? ' · 읽지 못한 쪽 ' + bad.length : '');
+      P3.done(read + '쪽을 엑셀로 옮겼어요 · ' + mb(blob.size), bad.length ? '읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적었어요' : '시트: 일지값 · 심뇌혈관 · 중증외상', { name: 'ilji_values_from_pdf.xlsx', blob });
+    } catch (e) { console.error(e); P3.err(e.message || String(e)); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
+    P3.endProg(); P3.busy = false;
   }
-  function exportExcel(which) {
-    return run(async () => {
-      const n = Math.max(1, Math.min(500, +$('#x-n').value || 1)), kind = $('#kind').value, level = +$('#level').value, s = $('#seed').value.trim();
-      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
-      const sets = await genMany(n, kind, level, base, (k, t) => { $('#x-state').textContent = '일지 만드는 중 ' + k + ' / ' + t; });
-      saveBlob(which === 'values' ? 'ilji_values.xlsx' : 'ilji_errors_01.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
-      $('#x-state').textContent = n + '건(시드 ' + base + '~)을 저장했습니다. 값 엑셀과 오류 엑셀은 같은 시드·구성·오류 수준이면 같은 일지입니다. 첫 화면에 올리면 PDF가 됩니다.';
+
+  /* ---------- ① 랜덤 일지 만들기 ---------- */
+  const P1 = panel('p1');
+  function keyText(sets) {
+    const L = [];
+    sets.forEach((s) => {
+      L.push('[정답표] 시드 ' + s.seed + ' · 일련번호 ' + s.serial, '교정지에 이 PDF들을 올렸을 때, 아래 "일부러 넣은 오류"가 모두 지적으로 나와야 합니다.', '');
+      Object.keys(s.forms).forEach((k) => {
+        L.push('■ ' + FORMS[k].title);
+        const ns = s.notes.filter((x) => x[0] === FORMS[k].title);
+        if (!ns.length) L.push('  (일부러 넣은 오류 없음 — 정상본: 지적 0건이어야 함)');
+        ns.forEach((x) => L.push('  - ' + x[1] + ': ' + x[2] + '  → 기대 지적: ' + x[3]));
+        L.push('');
+      });
     });
+    return L.join('\n');
   }
-  $('#x-val').addEventListener('click', () => exportExcel('values'));
-  $('#x-err').addEventListener('click', () => exportExcel('errors'));
-  bindHome();
+  async function p1Make() {
+    if (P1.busy) return;
+    P1.busy = true; P1.clear();
+    try {
+      const wantPdf = $('#p1-pdf').checked, xv = $('#p1-xv').checked, xe = $('#p1-xe').checked;
+      if (!(wantPdf || xv || xe)) throw new Error('받을 파일을 하나 이상 고르세요');
+      const kind = $('#p1-kind').value, level = +$('#p1-level').value, s = $('#p1-seed').value.trim(), maxN = wantPdf ? 100 : 500;
+      const n = Math.max(1, Math.min(maxN, +$('#p1-n').value || 1)); $('#p1-n').value = n;
+      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
+      const sets = await genMany(n, kind, level, base, (k, t) => P1.prog('일지 세트 만드는 중', k, t), wantPdf);
+      const files = [];
+      if (wantPdf) { sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes }))); files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) }); }
+      if (xv) files.push({ name: 'ilji_values.xlsx', data: xlsxBytes(valuesWorkbook(sets)) });
+      if (xe) files.push({ name: 'ilji_errors_01.xlsx', data: xlsxBytes(errorWorkbook(sets)) });
+      const single = files.length === 1, res = single
+        ? { name: files[0].name, blob: new Blob([files[0].data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) }
+        : { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) };
+      P1.done('일지 세트 ' + n + '건 완성 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · ' + (single ? '엑셀 1개' : 'ZIP 안에 ' + files.length + '개 파일'), res);
+    } catch (e) { console.error(e); P1.err('만들지 못했습니다: ' + (e.message || e)); }
+    P1.endProg(); P1.busy = false;
+  }
+
+  /* ---------- 연습용 파일 · 연결 ---------- */
+  const sample = (fn) => async (ev) => { const b = ev.currentTarget; b.disabled = true; try { await fn(); } finally { b.disabled = false; } };
+  $('#p2-sv').addEventListener('click', sample(async () => saveBlob('ilji_sample_values.xlsx', xlsxBlob(valuesWorkbook(await genMany(3, 'both', 1, 20260101))))));
+  $('#p2-se').addEventListener('click', sample(async () => saveBlob('ilji_sample_errors.xlsx', xlsxBlob(errorWorkbook(await genMany(3, 'both', 1, 20260101))))));
+  $('#p3-sp').addEventListener('click', sample(async () => {
+    const sets = await genMany(1, 'both', 1, 20260101, null, true), out = await PDFLib.PDFDocument.create();
+    for (const p of sets[0].pdfs) out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(p.bytes), [0]))[0]);
+    saveBlob('ilji_sample.pdf', new Blob([await out.save()], { type: 'application/pdf' }));
+  }));
+  wireDrop('p2', p2Handle, false);
+  wireDrop('p3', p3Handle, true);
+  $('#p2-again').addEventListener('click', p2Reset);
+  $('#p3-again').addEventListener('click', p3Reset);
+  $('#p2-exc').addEventListener('change', p2Convert);
+  document.querySelectorAll('input[name=p2-out]').forEach((r) => r.addEventListener('change', p2Convert));
+  $('#p1-go').addEventListener('click', p1Make);
+  $('#p1-again').addEventListener('click', () => P1.clear());
+  const orig = $('#x-gen'), tog = $('#x-orig');
+  if (orig && tog) tog.addEventListener('click', () => { orig.hidden = !orig.hidden; tog.textContent = orig.hidden ? '원래 생성기 화면(문서별 미리보기·정답표) 열기' : '원래 생성기 화면 닫기'; });
 
   // 시험·확인용
-  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, handleFile, H };
+  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, workbookFromRows, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, identify, pageContent, p1Make, p2Handle, p3Handle };
 })();
