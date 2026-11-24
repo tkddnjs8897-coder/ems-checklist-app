@@ -35,3 +35,13 @@ python make_dummy.py dummy                                  # 시험용 가짜 �
 - 원본 일지 PDF에 박스 표시는 파이썬 버전(`precheck.py --pdf`)에서만 지원
 - 다시 만들기: `python build_html.py <xlsx.mini.min.js 경로>` (템플릿 `ilji-precheck.template.html` + `form_layout.json` + `tpl-log.pdf` + `stream.js` + `vendor/pdf-lib.min.js`)
 - 좌표 다시 뽑기: `python make_layout.py <team.json 경로>`
+
+## 랜덤 일지 생성기에 넣은 버전 (`generator/ems-random-plus.html`)
+구급빨간펜 시험용 랜덤 일지 생성기에 "엑셀 ↔ 일지 변환" 카드를 추가한 파일. 원본 생성기 기능은 그대로다.
+- ① 만든 일지 N건 → **값 엑셀**(`일지값` 시트, 일지 칸마다 한 열) / **일부러 넣은 오류 위치 엑셀(0/1)**(`오류위치`·`정답표` 시트)
+- ② **값 엑셀 → 구급활동일지 PDF** (한 줄 = 한 쪽)
+- ③ **오류 엑셀(0/1) → 수정 칸 표시 일지 PDF** (위 `ilji-precheck.html` 기능과 같음, 센터별 ZIP 선택 가능)
+- 왕복 시험: 생성기 일지 → 엑셀(xlsx로 쓰고 다시 읽음) → PDF 가 원래 일지와 글자 덩어리 288개 모두 일치(오류 수준 0~3, 48건).
+- 값 엑셀의 체크 칸은 선택한 항목 이름을 쉼표로 적는다. 한 칸 안에서 이름이 겹치면 #2, #3 을 붙인다.
+- 만드는 법: `python generator/build_generator.py <원본 ems-random.html> <xlsx.mini.min.js>` (원본은 수정하지 않음)
+- 일지 칸 변환표는 `generator/extras.js` 의 `F` 배열. 서식 PDF 글자 덩어리 번호 기준이라 서식이 바뀌면 다시 맞춰야 한다.
