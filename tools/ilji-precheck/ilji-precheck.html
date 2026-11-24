@@ -39,7 +39,12 @@
   .note { color:var(--mute); font-size:12px; margin-top:8px; }
   #msg { color:var(--accent); margin-top:8px; }
   #print { display:none; }
-  @page { margin:15mm; }
+  .opt { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--mute); margin-bottom:10px; }
+  #print .fmeta { font-size:12px; margin:2px 0 6px; }
+  #print .formsvg { display:block; width:176mm; height:auto; margin:0 auto 4mm; }
+  #print .formsvg text { font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
+  #print .fnote { font-size:11px; margin:3px 0; }
+  @page { margin:12mm; }
   @media print {
     body { background:#fff; color:#000; }
     main { display:none; }
@@ -75,8 +80,10 @@
         <input type="search" id="fText" placeholder="보고서번호 검색">
         <span style="flex:1"></span>
         <button id="btnXlsx">엑셀로 저장</button>
-        <button id="btnPrint" class="primary">센터별 수정요청서 인쇄/PDF</button>
+        <button id="btnForm" class="primary">수정 칸 표시 일지 인쇄/PDF</button>
+        <button id="btnPrint">센터별 수정요청서 인쇄</button>
       </div>
+      <label class="opt"><input type="checkbox" id="exc" checked> 2025 서식에서 삭제된 칸(18.환자직업)은 오류에서 제외</label>
       <div class="scroll"><table id="list"><thead><tr>
         <th>보고서번호</th><th>소방서</th><th>출동센터</th><th>신고일시</th><th>수정 필요 항목</th>
       </tr></thead><tbody></tbody></table></div>
@@ -107,7 +114,289 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
 </script>
 <script>
 (function () {
-  var META = 4, rows = [], items = [], clean = 0;
+  var LAYOUT = {
+ "page": [
+  595,
+  842
+ ],
+ "form": "구급정보시스템 출력 구급활동일지(2025 개정 서식)",
+ "items": {
+  "1.소속": {
+   "box": [
+    20,
+    28,
+    200,
+    42
+   ]
+  },
+  "2.차량번호": {
+   "box": [
+    64,
+    53,
+    160,
+    67
+   ]
+  },
+  "3.구급구분": {
+   "box": [
+    195,
+    53,
+    350,
+    67
+   ]
+  },
+  "4.신고일시": {
+   "box": [
+    90,
+    66,
+    155,
+    91
+   ]
+  },
+  "5.출동일시": {
+   "box": [
+    90,
+    92,
+    155,
+    106
+   ]
+  },
+  "6.현장도착일시": {
+   "box": [
+    90,
+    111,
+    155,
+    125
+   ]
+  },
+  "7.환자접촉일시": {
+   "box": [
+    90,
+    132,
+    155,
+    146
+   ]
+  },
+  "8.현장과의거리": {
+   "box": [
+    90,
+    150,
+    155,
+    164
+   ]
+  },
+  "9.현장출발일시": {
+   "box": [
+    90,
+    164,
+    155,
+    178
+   ]
+  },
+  "10.병원도착일시": {
+   "box": [
+    90,
+    178,
+    155,
+    192
+   ]
+  },
+  "11.귀소일시": {
+   "box": [
+    90,
+    192,
+    155,
+    206
+   ]
+  },
+  "12.신고자번호": {
+   "box": [
+    236,
+    66,
+    352,
+    79
+   ]
+  },
+  "13.신고방법": {
+   "box": [
+    392,
+    66,
+    560,
+    79
+   ]
+  },
+  "14.환자성명": {
+   "box": [
+    230,
+    78,
+    320,
+    92
+   ]
+  },
+  "15.환자나이": {
+   "box": [
+    341,
+    78,
+    394,
+    93
+   ]
+  },
+  "16.환자성별": {
+   "box": [
+    420,
+    78,
+    470,
+    93
+   ]
+  },
+  "17.환자주소": {
+   "box": [
+    236,
+    96,
+    570,
+    111
+   ]
+  },
+  "19.환자발생 위치": {
+   "box": [
+    223,
+    140,
+    570,
+    155
+   ]
+  },
+  "20.환자발생 장소": {
+   "box": [
+    196,
+    153,
+    560,
+    178
+   ]
+  },
+  "21.환자증상": {
+   "box": [
+    196,
+    178,
+    560,
+    234
+   ]
+  },
+  "22.환자발생유형": {
+   "box": [
+    50,
+    236,
+    92,
+    330
+   ]
+  },
+  "23.의식상태(1차)": {
+   "box": [
+    160,
+    329,
+    245,
+    343
+   ]
+  },
+  "24.1.동공상태_좌(1차)": {
+   "box": [
+    110,
+    342,
+    232,
+    353
+   ]
+  },
+  "24.2.동공상태_우(1차)": {
+   "box": [
+    110,
+    353,
+    232,
+    364
+   ]
+  },
+  "24.3.동공반응_좌(1차)": {
+   "box": [
+    244,
+    342,
+    365,
+    353
+   ]
+  },
+  "24.4.동공반응_우(1차)": {
+   "box": [
+    244,
+    353,
+    365,
+    364
+   ]
+  },
+  "25.활력징후": {
+   "box": [
+    92,
+    376,
+    410,
+    399
+   ]
+  },
+  "26.환자분류": {
+   "box": [
+    92,
+    398,
+    352,
+    411
+   ]
+  },
+  "27.평가소견": {
+   "box": [
+    92,
+    422,
+    570,
+    452
+   ]
+  },
+  "28.응급처치": {
+   "box": [
+    46,
+    452,
+    570,
+    502
+   ]
+  },
+  "29.의료지도": {
+   "box": [
+    92,
+    501,
+    570,
+    555
+   ]
+  },
+  "30.환자이송": {
+   "box": [
+    60,
+    575,
+    115,
+    648
+   ]
+  },
+  "31.이송자": {
+   "box": [
+    110,
+    710,
+    290,
+    758
+   ]
+  },
+  "32.장애요인": {
+   "box": [
+    46,
+    757,
+    575,
+    780
+   ]
+  }
+ }
+};
+  var EXCLUDE = ['18.환자직업'];
+  var META = 4, raw = [], total = 0, rows = [], items = [], clean = 0;
   var $ = function (id) { return document.getElementById(id); };
 
   function el(tag, text, cls) {
@@ -131,22 +420,33 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
         var data = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
         if (data.length < 2 || data[0].length <= META) throw new Error('형식이 맞지 않습니다');
         items = data[0].slice(META).map(function (h) { return String(h).trim(); });
-        rows = []; clean = 0;
+        raw = []; total = 0;
         data.slice(1).forEach(function (r) {
           if (!r[0]) return;
+          total++;
           var errs = [];
           items.forEach(function (it, i) { if (String(r[META + i]).trim() === '1') errs.push(it); });
-          if (!errs.length) { clean++; return; }
-          rows.push({ id: String(r[0]).trim(), station: String(r[1]), center: String(r[2]) || '미분류',
+          if (!errs.length) return;
+          raw.push({ id: String(r[0]).trim(), station: String(r[1]), center: String(r[2]) || '미분류',
                       time: fmtTime(r[3]), errs: errs });
         });
-        render();
+        applyExclude(); render();
       } catch (e) {
         $('result').hidden = true;
         $('msg').textContent = '읽을 수 없는 파일입니다: ' + e.message;
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  function applyExclude() {
+    var ex = $('exc').checked ? EXCLUDE : [];
+    rows = [];
+    raw.forEach(function (r) {
+      var e = r.errs.filter(function (x) { return ex.indexOf(x) < 0; });
+      if (e.length) rows.push({ id: r.id, station: r.station, center: r.center, time: r.time, errs: e });
+    });
+    clean = total - rows.length;
   }
 
   function uniq(a) { return a.filter(function (v, i) { return a.indexOf(v) === i; }).sort(); }
@@ -165,8 +465,10 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
      ['오류 없음', clean + '건'], ['출동센터', centers.length + '곳']].forEach(function (p) {
       var d = el('div', null, 'stat'); d.appendChild(el('b', p[1])); d.appendChild(el('span', p[0])); st.appendChild(d);
     });
+    var oc = $('fCenter').value, oi = $('fItem').value;
     fillSelect($('fCenter'), '전체 센터', centers);
     fillSelect($('fItem'), '전체 항목', uniq(rows.reduce(function (a, r) { return a.concat(r.errs); }, [])));
+    $('fCenter').value = oc; $('fItem').value = oi;
 
     var cnt = {};
     rows.forEach(function (r) { r.errs.forEach(function (e) { cnt[e] = (cnt[e] || 0) + 1; }); });
@@ -243,6 +545,67 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     window.print();
   }
 
+  var NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS(NS, tag);
+    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+  function wrapText(s, w, fs) {
+    var per = Math.max(1, Math.floor(w / (fs * 0.95))), out = [];
+    for (var i = 0; i < s.length; i += per) out.push(s.slice(i, i + per));
+    return out;
+  }
+  function formSvg(errs) {
+    var keys = Object.keys(LAYOUT.items || {}), x0 = 1e9, y0 = 1e9, x1 = 0, y1 = 0;
+    keys.forEach(function (k) {
+      var b = LAYOUT.items[k].box;
+      x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]);
+    });
+    var svg = svgEl('svg', { viewBox: (x0 - 6) + ' ' + (y0 - 6) + ' ' + (x1 - x0 + 12) + ' ' + (y1 - y0 + 12), 'class': 'formsvg' });
+    var bad = {}; errs.forEach(function (e) { bad[e] = 1; });
+    [false, true].forEach(function (flag) {
+      keys.forEach(function (k) {
+        if (!!bad[k] !== flag) return;
+        var b = LAYOUT.items[k].box, x = b[0], y = b[1], w = b[2] - b[0], h = b[3] - b[1];
+        svg.appendChild(svgEl('rect', { x: x, y: y, width: w, height: h,
+          fill: flag ? 'rgba(198,40,40,0.16)' : 'none', stroke: flag ? '#c62828' : '#9aa0a6',
+          'stroke-width': flag ? 1.6 : 0.5 }));
+        var fs = flag ? 8.5 : 7, lines = wrapText(k, w - 3, fs);
+        while (lines.length * fs * 1.15 > h && fs > 4.5) { fs -= 0.5; lines = wrapText(k, w - 3, fs); }
+        lines.forEach(function (t, i) {
+          var tx = svgEl('text', { x: x + 1.5, y: y + fs + i * fs * 1.15, 'font-size': fs,
+            fill: flag ? '#c62828' : '#6b7280', 'font-weight': flag ? 700 : 400 });
+          tx.textContent = t; svg.appendChild(tx);
+        });
+      });
+    });
+    return svg;
+  }
+
+  function printForms() {
+    var list = filtered().slice().sort(function (a, b) {
+      return (a.center + a.id) < (b.center + b.id) ? -1 : 1;
+    });
+    if (!list.length) return;
+    var box = $('print'); box.textContent = '';
+    list.forEach(function (r) {
+      var sec = el('section');
+      sec.appendChild(el('h2', '구급활동일지 수정 필요 칸 표시'));
+      sec.appendChild(el('div', '보고서번호 ' + r.id + '  |  ' + r.station + ' ' + r.center + '  |  신고 ' + r.time, 'fmeta'));
+      sec.appendChild(formSvg(r.errs));
+      var d = el('div', '고칠 항목: ', 'fnote'); chips(d, r.errs);
+      d.querySelectorAll('.chip').forEach(function (c) { c.style.display = 'inline'; c.style.marginRight = '8px'; });
+      sec.appendChild(d);
+      r.errs.filter(function (e) { return !(LAYOUT.items && LAYOUT.items[e]); }).forEach(function (e) {
+        sec.appendChild(el('div', '※ ' + e + ': 서식 배치도에 칸이 없어 표시하지 못했습니다(삭제된 칸이거나 좌표 미등록).', 'fnote'));
+      });
+      sec.appendChild(el('div', '※ 이 문서에는 환자 정보가 없습니다. 빨간 칸의 위치를 보고 원본 일지에서 내용을 확인해 수정하세요. 칸 위치는 구급정보시스템 출력 서식(2025) 기준 배치도이며 공식 서식이 아닙니다.', 'fnote'));
+      box.appendChild(sec);
+    });
+    window.print();
+  }
+
   var drop = $('drop');
   $('file').addEventListener('change', function (e) { if (e.target.files[0]) load(e.target.files[0]); });
   drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
@@ -255,6 +618,8 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
   $('fText').addEventListener('input', renderList);
   $('btnXlsx').addEventListener('click', saveXlsx);
   $('btnPrint').addEventListener('click', printByCenter);
+  $('btnForm').addEventListener('click', printForms);
+  $('exc').addEventListener('change', function () { applyExclude(); render(); });
 })();
 </script>
 </body>

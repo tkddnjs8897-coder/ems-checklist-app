@@ -27,5 +27,9 @@ python make_dummy.py dummy                                  # 시험용 가짜 �
 - 건별 목록 · 센터/항목/보고서번호 필터 · 항목별 집계
 - `엑셀로 저장`(ilji_fix_list.xlsx), `센터별 수정요청서 인쇄/PDF`(브라우저 인쇄 → PDF로 저장)
 - 외부 통신 차단(CSP). 엑셀 읽기 라이브러리(SheetJS 0.18.5, Apache-2.0)를 파일 안에 포함
+- **수정 칸 표시 일지 인쇄/PDF**: 엑셀만으로, 건마다 한 쪽씩 "일지 칸 배치도"를 그리고 고칠 칸을 빨갛게 표시한다(원본 PDF·환자 정보 불필요).
+  칸 좌표는 구급빨간펜(team.json)의 구급정보시스템 출력 서식(2025) 이송 일지 좌표 34개(`form_layout.json`). 공식 서식이 아니라 위치 안내용 배치도다.
+- `18.환자직업`은 2025 서식에서 칸이 삭제돼(구급빨간펜 결정 2026-10-31) 기본으로 오류에서 제외한다(체크박스로 해제 가능).
 - 원본 일지 PDF에 박스 표시는 파이썬 버전(`precheck.py --pdf`)에서만 지원
-- 다시 만들기: `python build_html.py <xlsx.mini.min.js 경로>` (템플릿은 `ilji-precheck.template.html`)
+- 다시 만들기: `python build_html.py <xlsx.mini.min.js 경로>` (템플릿 `ilji-precheck.template.html` + 좌표 `form_layout.json`)
+- 좌표 다시 뽑기: `python make_layout.py <team.json 경로>`
