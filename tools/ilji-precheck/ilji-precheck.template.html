@@ -40,10 +40,6 @@
   #msg { color:var(--accent); margin-top:8px; }
   #print { display:none; }
   .opt { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--mute); margin-bottom:10px; }
-  #print .fmeta { font-size:12px; margin:2px 0 6px; }
-  #print .formsvg { display:block; width:176mm; height:auto; margin:0 auto 4mm; }
-  #print .formsvg text { font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif; }
-  #print .fnote { font-size:11px; margin:3px 0; }
   @page { margin:12mm; }
   @media print {
     body { background:#fff; color:#000; }
@@ -80,14 +76,16 @@
         <input type="search" id="fText" placeholder="보고서번호 검색">
         <span style="flex:1"></span>
         <button id="btnXlsx">엑셀로 저장</button>
-        <button id="btnForm" class="primary">수정 칸 표시 일지 인쇄/PDF</button>
-        <button id="btnPrint">센터별 수정요청서 인쇄</button>
+        <button id="btnPdf" class="primary">수정 칸 표시 일지 PDF</button>
+        <button id="btnZip">센터별 PDF 묶음(ZIP)</button>
+        <button id="btnPrint">수정요청서 인쇄</button>
       </div>
       <label class="opt"><input type="checkbox" id="exc" checked> 2025 서식에서 삭제된 칸(18.환자직업)은 오류에서 제외</label>
       <div class="scroll"><table id="list"><thead><tr>
         <th>보고서번호</th><th>소방서</th><th>출동센터</th><th>신고일시</th><th>수정 필요 항목</th>
       </tr></thead><tbody></tbody></table></div>
       <div class="note" id="count"></div>
+      <div class="note" id="pdfState"></div>
     </div>
 
     <div class="card">
@@ -104,8 +102,16 @@
 /*__XLSX__*/
 </script>
 <script>
+/* pdf-lib 1.17.1 (MIT) https://pdf-lib.js.org */
+/*__PDFLIB__*/
+</script>
+<script>
+/*__STREAM__*/
+</script>
+<script>
 (function () {
   var LAYOUT = /*__LAYOUT__*/{};
+  var TPL_B64 = '/*__TPL__*/';
   var EXCLUDE = ['18.환자직업'];
   var META = 4, raw = [], total = 0, rows = [], items = [], clean = 0;
   var $ = function (id) { return document.getElementById(id); };
@@ -256,65 +262,121 @@
     window.print();
   }
 
-  var NS = 'http://www.w3.org/2000/svg';
-  function svgEl(tag, attrs) {
-    var e = document.createElementNS(NS, tag);
-    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-    return e;
+  /* ---------- 일지 PDF: 구급정보시스템 출력 서식(2025) 그대로, 값은 비우고 고칠 칸만 빨갛게 ---------- */
+  // 서식 PDF 안에 예시(가상) 값이 들어 있는 글자 덩어리 번호 : 앞글자(서식이 달라졌는지 확인용)
+  var VALUE_RUNS = { 0: '구천동', 1: '터', 2: '설천', 7: '063', 9: '998', 18: '010', 26: '김가', 28: '70세', 32: '1900',
+    34: '05:3', 39: '05:3', 41: '05:3', 44: '박가', 46: '배우', 48: '010', 50: '가상', 52: '1km', 57: '05:3', 60: '06:4', 69: '08:3',
+    126: '05:4', 127: '170/', 128: '82회', 129: '20회', 130: '36.3', 131: '99%', 133: '06:3', 134: '160/', 135: '86회',
+    136: '20회', 137: '36.5', 138: '97%', 146: '환자말', 147: '가능하', 148: '정도', 180: '-', 194: '학교법', 195: '톨릭학',
+    196: '톨릭대', 197: '대전성', 199: '06:4', 211: '최가상', 217: '-', 219: '-', 231: '-', 253: '소방', 255: '김대',
+    260: '소방', 262: '이대', 267: '소방', 269: '박대', 284: '1X00' };
+  var TEXT_RUNS = { 36: ['(Tel', '(Tel :                    )'], 103: ['(05', '(     )'], 106: ['(06', '(     )'],
+    144: ['ㆍ주', 'ㆍ주 호소: '], 145: ['ㆍ발', 'ㆍ발생시간([ ]추정): '], 214: ['(75', '(    km)'],
+    285: ['출력자', '출력자 : '], 287: ['출력 일시', '출력 일시 : '] };
+  var tplBytes = null;
+
+  function b64ToU8(b64) {
+    var s = atob(b64), u = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return u;
   }
-  function wrapText(s, w, fs) {
-    var per = Math.max(1, Math.floor(w / (fs * 0.95))), out = [];
-    for (var i = 0; i < s.length; i += per) out.push(s.slice(i, i + per));
-    return out;
+  async function gunzipU8(u8) {
+    return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
   }
-  function formSvg(errs) {
-    var keys = Object.keys(LAYOUT.items || {}), x0 = 1e9, y0 = 1e9, x1 = 0, y1 = 0;
-    keys.forEach(function (k) {
-      var b = LAYOUT.items[k].box;
-      x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[2]); y1 = Math.max(y1, b[3]);
-    });
-    var svg = svgEl('svg', { viewBox: (x0 - 6) + ' ' + (y0 - 6) + ' ' + (x1 - x0 + 12) + ' ' + (y1 - y0 + 12), 'class': 'formsvg' });
-    var bad = {}; errs.forEach(function (e) { bad[e] = 1; });
-    [false, true].forEach(function (flag) {
-      keys.forEach(function (k) {
-        if (!!bad[k] !== flag) return;
-        var b = LAYOUT.items[k].box, x = b[0], y = b[1], w = b[2] - b[0], h = b[3] - b[1];
-        svg.appendChild(svgEl('rect', { x: x, y: y, width: w, height: h,
-          fill: flag ? 'rgba(198,40,40,0.16)' : 'none', stroke: flag ? '#c62828' : '#9aa0a6',
-          'stroke-width': flag ? 1.6 : 0.5 }));
-        var fs = flag ? 8.5 : 7, lines = wrapText(k, w - 3, fs);
-        while (lines.length * fs * 1.15 > h && fs > 4.5) { fs -= 0.5; lines = wrapText(k, w - 3, fs); }
-        lines.forEach(function (t, i) {
-          var tx = svgEl('text', { x: x + 1.5, y: y + fs + i * fs * 1.15, 'font-size': fs,
-            fill: flag ? '#c62828' : '#6b7280', 'font-weight': flag ? 700 : 400 });
-          tx.textContent = t; svg.appendChild(tx);
-        });
-      });
-    });
-    return svg;
+  async function newTemplate() {
+    if (!tplBytes) tplBytes = await gunzipU8(b64ToU8(TPL_B64));
+    var doc = await PDFLib.PDFDocument.load(tplBytes), page = doc.getPage(0);
+    var cs = page.node.Contents(), raw = cs.getContents ? cs.getContents() : cs.contents;
+    return { doc: doc, page: page, stream: new Stream(raw, page.getHeight()) };
+  }
+  async function finishT(t) {
+    var ref = t.doc.context.register(t.doc.context.flateStream(t.stream.serialize()));
+    t.page.node.set(PDFLib.PDFName.of('Contents'), ref);
+    return await t.doc.save();
   }
 
-  function printForms() {
-    var list = filtered().slice().sort(function (a, b) {
-      return (a.center + a.id) < (b.center + b.id) ? -1 : 1;
+  function expectRun(R, i, prefix) {
+    if (!R[i] || R[i].text.indexOf(prefix) !== 0) throw new Error('서식 글자 덩어리 ' + i + ' 가 예상과 다릅니다');
+    return R[i];
+  }
+  // 값은 모두 비우고, 엑셀에서 아는 것(보고서번호·소속·신고일시)만 채운다
+  function fillForm(st, r) {
+    var R = st.runs;
+    R.forEach(function (run) { if (run.text.indexOf('[√]') >= 0) st.uncheck(run); });
+    // 가상 서명 그림(Im1~Im4)을 지운다. 사고부위 인체 그림(Im0)은 서식의 일부라 남긴다. 글자 위치가 밀리지 않게 같은 길이의 공백으로 바꾼다
+    st.src = st.src.replace(/\/Im[1-4] Do/g, function (m) { return new Array(m.length + 1).join(' '); });
+    Object.keys(VALUE_RUNS).forEach(function (i) { st.set(expectRun(R, i, VALUE_RUNS[i]), ' '); });
+    Object.keys(TEXT_RUNS).forEach(function (i) { st.set(expectRun(R, i, TEXT_RUNS[i][0]), TEXT_RUNS[i][1]); });
+    var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/.exec(r.time);
+    st.set(expectRun(R, 15, '2026'), m ? m[1] + '. ' + m[2] + '. ' + m[3] : ' ');
+    st.set(expectRun(R, 21, '05:'), m ? m[4] + ':' + m[5] : ' ');
+    st.set(expectRun(R, 282, '2026'), r.id);
+    st.set(expectRun(R, 286, '소속'), '소속 : ' + r.station + ' ' + r.center);
+  }
+
+  function drawMarks(page, font, errs) {
+    var H = page.getHeight(), red = PDFLib.rgb(0.78, 0.16, 0.16);
+    errs.forEach(function (e) {
+      var it = LAYOUT.items && LAYOUT.items[e];
+      if (!it) return;
+      var b = it.box, pad = 1.5, num = (/^\d+(?:\.\d+)?(?=\.\D)/.exec(e) || [e])[0];
+      page.drawRectangle({ x: b[0] - pad, y: H - b[3] - pad, width: b[2] - b[0] + 2 * pad, height: b[3] - b[1] + 2 * pad,
+        color: red, opacity: 0.14, borderColor: red, borderWidth: 1.5, borderOpacity: 1 });
+      page.drawText(num, { x: Math.max(1, b[0] - 11), y: H - b[1] - 7, size: 8, font: font, color: red });
     });
-    if (!list.length) return;
-    var box = $('print'); box.textContent = '';
-    list.forEach(function (r) {
-      var sec = el('section');
-      sec.appendChild(el('h2', '구급활동일지 수정 필요 칸 표시'));
-      sec.appendChild(el('div', '보고서번호 ' + r.id + '  |  ' + r.station + ' ' + r.center + '  |  신고 ' + r.time, 'fmeta'));
-      sec.appendChild(formSvg(r.errs));
-      var d = el('div', '고칠 항목: ', 'fnote'); chips(d, r.errs);
-      d.querySelectorAll('.chip').forEach(function (c) { c.style.display = 'inline'; c.style.marginRight = '8px'; });
-      sec.appendChild(d);
-      r.errs.filter(function (e) { return !(LAYOUT.items && LAYOUT.items[e]); }).forEach(function (e) {
-        sec.appendChild(el('div', '※ ' + e + ': 서식 배치도에 칸이 없어 표시하지 못했습니다(삭제된 칸이거나 좌표 미등록).', 'fnote'));
-      });
-      sec.appendChild(el('div', '※ 이 문서에는 환자 정보가 없습니다. 빨간 칸의 위치를 보고 원본 일지에서 내용을 확인해 수정하세요. 칸 위치는 구급정보시스템 출력 서식(2025) 기준 배치도이며 공식 서식이 아닙니다.', 'fnote'));
-      box.appendChild(sec);
+  }
+
+  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+
+  async function buildPdf(list, label) {
+    var out = await PDFLib.PDFDocument.create();
+    for (var n = 0; n < list.length; n++) {
+      $('pdfState').textContent = label + ' 만드는 중 ' + (n + 1) + ' / ' + list.length;
+      await tick();
+      var t = await newTemplate();
+      fillForm(t.stream, list[n]);
+      var d = await PDFLib.PDFDocument.load(await finishT(t));
+      drawMarks(d.getPage(0), await d.embedFont(PDFLib.StandardFonts.HelveticaBold), list[n].errs);
+      out.addPage((await out.copyPages(d, [0]))[0]);
+    }
+    return await out.save();
+  }
+
+  function saveBlob(name, blob) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function sortedList(list) {
+    return list.slice().sort(function (a, b) { return (a.center + a.id) < (b.center + b.id) ? -1 : 1; });
+  }
+  var busy = false;
+  async function run(fn) {
+    if (busy) return;
+    busy = true;
+    try { await fn(); } catch (e) { $('pdfState').textContent = '만들지 못했습니다: ' + e.message; }
+    busy = false;
+  }
+  function makePdf() {
+    return run(async function () {
+      var list = sortedList(filtered());
+      if (!list.length) return;
+      var bytes = await buildPdf(list, '일지');
+      saveBlob('ilji_marked.pdf', new Blob([bytes], { type: 'application/pdf' }));
+      $('pdfState').textContent = '일지 ' + list.length + '쪽을 ilji_marked.pdf 로 저장했습니다.';
     });
-    window.print();
+  }
+  function makeZipByCenter() {
+    return run(async function () {
+      var all = sortedList(filtered()), files = [], centers = uniq(all.map(function (r) { return r.center; }));
+      for (var i = 0; i < centers.length; i++) {
+        var rs = all.filter(function (r) { return r.center === centers[i]; });
+        files.push({ name: '일지_' + centers[i] + '.pdf', data: await buildPdf(rs, centers[i]) });
+      }
+      if (!files.length) return;
+      saveBlob('ilji_by_center.zip', makeZip(files));
+      $('pdfState').textContent = '센터 ' + files.length + '곳의 PDF를 ilji_by_center.zip 으로 저장했습니다.';
+    });
   }
 
   var drop = $('drop');
@@ -329,7 +391,8 @@
   $('fText').addEventListener('input', renderList);
   $('btnXlsx').addEventListener('click', saveXlsx);
   $('btnPrint').addEventListener('click', printByCenter);
-  $('btnForm').addEventListener('click', printForms);
+  $('btnPdf').addEventListener('click', makePdf);
+  $('btnZip').addEventListener('click', makeZipByCenter);
   $('exc').addEventListener('change', function () { applyExclude(); render(); });
 })();
 </script>
