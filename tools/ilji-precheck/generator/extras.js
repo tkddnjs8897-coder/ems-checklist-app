@@ -1,19 +1,18 @@
-/* 랜덤 구급일지 생성기 추가 기능 — 엑셀 ↔ 일지 변환
-   ① 만든 일지 → 값 엑셀 / 일부러 넣은 오류 위치 엑셀(0/1)
-   ② 값 엑셀 → 구급활동일지 PDF
-   ③ 오류 엑셀(0/1) → 고칠 칸을 빨갛게 표시한 구급활동일지 PDF
-   생성기 쪽 전역(loadTemplate, Stream, makeZip, makeCtx, makeRng, buildLog, pickErrors, ERR)과 PDFLib, XLSX 를 쓴다.
+/* 랜덤 구급일지 생성기 추가 기능 — 엑셀 ↔ 구급일지·세부상황표 변환
+   · 첫 화면: 엑셀을 놓으면 종류(값 엑셀 / 오류 0·1 엑셀)를 알아보고 PDF로 바꾼다
+   · 시험용: 만든 일지 세트를 값 엑셀·오류 위치 엑셀로 내려받는다
+   생성기 쪽 전역(loadTemplate, Stream, makeZip, makeCtx, makeRng, build*, pickErrors, ERR, CONFIGS)과 PDFLib, XLSX 를 쓴다.
    모든 처리는 이 브라우저 안에서만 한다. */
 (() => {
   const $ = (s) => document.querySelector(s);
   const LAYOUT = /*__LAYOUT__*/{};
   const tick = () => new Promise((r) => setTimeout(r, 0));
 
-  /* ---------- 일지 칸 변환표 ----------
+  /* ================= 칸 변환표 =================
      [열 이름, 오류 엑셀의 항목 이름(없으면 ''), 종류, 서식 PDF 글자 덩어리 번호들, 보조값]
-     종류: text 글자 · join 여러 덩어리를 이어 붙임 · paren (값) · prefix 앞 글자+값 · onset 발생시간 ·
+     종류: text 글자 · join 줄바꿈 이어 붙임 · paren (값) · prefix/prefix0 앞 글자+값(공백 있음/없음) · onset 발생시간 · lpm 산소 유량 ·
            lines 여러 줄 · chunks 글자 수로 줄바꿈 · multi 칸마다 ' | ' · datetime 날짜+시각 · check 체크 칸 */
-  const F = [
+  const F_LOG = [
     ['1.소속', '1.소속', 'join', [0, 1]],
     ['1.소속(지역대)', '1.소속', 'text', [2]],
     ['센터전화', '', 'text', [7]],
@@ -99,18 +98,101 @@
     ['출력자', '', 'prefix', [285], '출력자 :'],
     ['출력일시', '', 'prefix', [287], '출력 일시 :'],
   ];
-  // 오류 엑셀(구급정보시스템 완결성 점검)의 항목 열 35개
+  // 심뇌혈관질환자 응급처치 세부상황표 (오류 엑셀의 항목 이름은 열 이름과 같다)
+  const F_CV = [
+    ['주증상 유형', '', 'check', [8]],
+    ['주호소 주증상(1개 선택)', '', 'check', [194, 195]],
+    ['주호소 동반증상(중복허용)', '', 'check', [198, 199]],
+    ['발병 정황', '', 'check', [201]],
+    ['발병시각 명확', '', 'check', [203]],
+    ['발병시각', '', 'text', [204]],
+    ['발병시각 불명확', '', 'check', [205]],
+    ['마지막 정상 확인 시각', '', 'text', [207]],
+    ['최초 이상 소견 발견 시각', '', 'text', [209]],
+    ['병원 전 뇌졸중 선별검사', '', 'check', [215]],
+    ['나이 ≥ 45세', '', 'check', [218]],
+    ['의식저하로 협조안됨', '', 'check', [222]],
+    ['뇌전증(간질) 및 경련 병력', '', 'check', [220]],
+    ['얼굴마비', '', 'check', [225]],
+    ['증상 발생 24시간 이내', '', 'check', [227]],
+    ['팔 위약', '', 'check', [229]],
+    ['평상시 휠체어·병상 생활 아님', '', 'check', [231]],
+    ['구음장애/실어증', '', 'check', [233]],
+    ['혈당 수치 60~400 mg/dL', '', 'check', [235]],
+    ['선별검사 최종 결과', '', 'check', [237]],
+    ['주시 편위(2점)', '', 'check', [241]],
+    ['나이/시간(월) 지남력', '', 'check', [243]],
+    ['팔 위약(편마비)(1점)', '', 'check', [245]],
+    ['눈감기/손잡고 펴기 동작', '', 'check', [247]],
+    ['최종 중증도 평가 결과', '', 'check', [249]],
+    ['뇌졸중 과거력', '', 'check', [252]],
+    ['뇌졸중 후유 장애', '', 'check', [254]],
+    ['혈전용해제 금기', '', 'check', [258]],
+    ['헬기 이송 요청', '', 'check', [260]],
+    ['병원 사전 연락', '', 'check', [262]],
+    ['담당자 자격', '', 'check', [264]],
+    ['담당자 계급', '', 'prefix0', [265], '계급:'],
+    ['담당자 성명', '', 'prefix0', [266], '성명:'],
+  ];
+  // 중증외상환자 응급처치 세부상황표
+  const F_TR = [
+    ['지령분류', '', 'check', [8]],
+    ['평가기준: 그 외 구급대원 판단', '', 'check', [29]],
+    ['평가기준: 다음에 해당', '', 'check', [32]],
+    ['중증외상 발생 시각', '', 'text', [42]],
+    ['구급처치 시작 시각', '', 'text', [44]],
+    ['발생 환자 수', '', 'text', [46]],
+    ['이송 환자 수', '', 'text', [48]],
+    ['중증외상 목격 여부', '', 'check', [50]],
+    ['구급처치 전·후 구조작업', '', 'check', [52]],
+    ['의도성 추정', '', 'check', [54]],
+    ['손상 기전 1', '', 'check', [57]],
+    ['손상 기전 2', '', 'check', [58]],
+    ['심정지/호흡정지 상황', '', 'check', [70]],
+    ['명백한 사망', '', 'check', [72]],
+    ['약물', '', 'check', [74]],
+    ['음주', '', 'check', [76]],
+    ['GCS 현장도착 E', '', 'text', [83]],
+    ['GCS 현장도착 M', '', 'text', [85]],
+    ['GCS 현장도착 V', '', 'text', [87]],
+    ['GCS 병원도착 E', '', 'text', [91]],
+    ['GCS 병원도착 M', '', 'text', [93]],
+    ['GCS 병원도착 V', '', 'text', [95]],
+    ['주외상 부위', '', 'check', [105]],
+    ['중증외상 판정', '', 'check', [107, 108, 109, 110]],
+    ['산소투여', '', 'check', [162]],
+    ['처치전 산소포화도', '', 'text', [167]],
+    ['처치후 산소포화도', '', 'text', [170]],
+    ['정맥로 확보', '', 'check', [177]],
+    ['처치전 수축기혈압', '', 'text', [182]],
+    ['처치후 수축기혈압', '', 'text', [185]],
+    ['사전 연락', '', 'check', [223]],
+    ['담당자 자격', '', 'check', [229]],
+    ['담당자 계급', '', 'text', [231]],
+    ['담당자 성명', '', 'prefix0', [232], '성명:'],
+  ];
+  // 오류 엑셀(구급정보시스템 완결성 점검)의 일지 항목 열 35개
   const ITEMS = ['1.소속', '2.차량번호', '3.구급구분', '4.신고일시', '5.출동일시', '6.현장도착일시', '7.환자접촉일시', '8.현장과의거리',
     '9.현장출발일시', '10.병원도착일시', '11.귀소일시', '12.신고자번호', '13.신고방법', '14.환자성명', '15.환자나이', '16.환자성별',
     '17.환자주소', '18.환자직업', '19.환자발생 위치', '20.환자발생 장소', '21.환자증상', '22.환자발생유형', '23.의식상태(1차)',
     '24.1.동공상태_좌(1차)', '24.2.동공상태_우(1차)', '24.3.동공반응_좌(1차)', '24.4.동공반응_우(1차)', '25.활력징후', '26.환자분류',
     '27.평가소견', '28.응급처치', '29.의료지도', '30.환자이송', '31.이송자', '32.장애요인'];
   const META = ['보고서번호', '소방서', '출동센터', '신고일시'];
-  const RUN_ITEM = {};
-  F.forEach((f) => { if (f[1]) f[3].forEach((i) => { RUN_ITEM[i] = f[1]; }); });
   const DELETED_ITEM = '18.환자직업'; // 2025 서식에서 칸이 삭제됨(구급빨간펜 결정 2026-10-31)
 
-  /* ---------- 읽기·쓰기 보조 ---------- */
+  // 서식별 정보. serial: 일련번호 글자 덩어리, img: 지울 가상 서명 그림
+  const FORMS = {
+    log: { tpl: 'log', title: '구급활동일지', sheet: '일지값', errSheet: '오류위치', F: F_LOG, serial: 282, img: /\/Im[1-4] Do/g },
+    cv: { tpl: 'cv', title: '심뇌혈관 세부상황표', sheet: '심뇌혈관', errSheet: '오류위치_심뇌혈관', F: F_CV, serial: 6, img: /\/Im0 Do/g, station: 1, center: 2 },
+    trauma: { tpl: 'trauma', title: '중증외상 세부상황표', sheet: '중증외상', errSheet: '오류위치_중증외상', F: F_TR, serial: 6, img: /\/Im0 Do/g, station: 1, center: 2 },
+  };
+  const FORM_KEYS = ['log', 'cv', 'trauma'];
+  FORM_KEYS.forEach((k) => {
+    const D = FORMS[k]; D.runField = {};
+    D.F.forEach((f, n) => f[3].forEach((i) => { D.runField[i] = { item: D === FORMS.log ? f[1] : f[0], n: n + 1 }; }));
+  });
+
+  /* ================= 읽기·쓰기 보조 ================= */
   const clean = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
   const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const p2s = (n) => String(n).padStart(2, '0');
@@ -157,10 +239,9 @@
     const [, , kind, idx, arg] = f, R = idx.map((i) => S.runs[i]);
     switch (kind) {
       case 'text': return clean(R[0].text);
-      case 'join': return clean(R.map((r) => r.text).join(''));
-      case 'chunks': return clean(R.map((r) => r.text).join(''));
+      case 'join': case 'chunks': return clean(R.map((r) => r.text).join(''));
       case 'paren': { const m = /^\((.*)\)$/.exec(R[0].text.trim()); return clean(m ? m[1] : R[0].text); }
-      case 'prefix': return clean(R[0].text.replace(new RegExp('^\\s*' + reEsc(arg) + '\\s*'), ''));
+      case 'prefix': case 'prefix0': return clean(R[0].text.replace(new RegExp('^\\s*' + reEsc(arg) + '\\s*'), ''));
       case 'onset': { const m = /^ㆍ발생시간\(\[\s*(√?)\s*\]추정\):\s*(.*)$/.exec(R[0].text.trim()); return m ? clean((m[1] ? '추정 ' : '') + m[2]) : clean(R[0].text); }
       case 'lpm': { const m = /(\d+(?:\.\d+)?)L\/min/.exec(R[0].text); return m ? m[1] : ''; }
       case 'lines': return R.map((r) => clean(r.text)).filter(Boolean).join('\n');
@@ -184,6 +265,7 @@
       }
       case 'paren': S.set(R[0], /^km$/i.test(val) ? '(   km)' : '(' + (val || '     ') + ')'); break;
       case 'prefix': S.set(R[0], arg + ' ' + val); break;
+      case 'prefix0': S.set(R[0], ' ' + arg + val); break;
       case 'onset': { const m = /^(추정)?\s*(.*)$/.exec(val); S.set(R[0], 'ㆍ발생시간([' + (m[1] ? '√' : ' ') + ']추정): ' + m[2]); break; }
       case 'lpm': S.set(R[0], R[0].text.replace(/\d+(?:\.\d+)?L\/min/, (val || '0') + 'L/min')); break;
       case 'chunks': {
@@ -211,195 +293,329 @@
     }
   }
 
-  // 일지(PDF 글자 편집 엔진) 에서 보고서번호·소속·신고일시
-  function readMeta(S) {
-    const sn = clean(S.runs[282].text), aff = /^소속\s*:\s*(\S+)\s*(.*)$/.exec(clean(S.runs[286].text)) || [];
-    const dt = readField(S, F.find((f) => f[0] === '4.신고일시')), o = parseDT(dt);
-    return { id: sn, station: aff[1] || '', center: clean(aff[2] || ''), time: o && o.h ? o.y + o.mo + o.d + o.h + o.mi + '00' : '' };
+  /* ================= 서식 한 쪽 읽기·만들기 ================= */
+  async function openStream(bytes, pageNo) {
+    const doc = await PDFLib.PDFDocument.load(bytes), page = doc.getPage(pageNo || 0), s = page.node.Contents();
+    const raw = s instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(s).decode() : (s.getContents ? s.getContents() : s.contents);
+    return new Stream(raw, page.getHeight());
   }
-  function writeMeta(S, m) {
-    S.set(S.runs[282], m.id || ' ');
-    S.set(S.runs[286], '소속 : ' + (m.station || '') + ' ' + (m.center || ''));
-  }
-
-  // 가상 서명 그림(Im1~Im4) 삭제 + 체크 모두 해제 (사고부위 인체 그림 Im0 은 서식의 일부라 남김)
-  function prepareBlank(S) {
-    S.src = S.src.replace(/\/Im[1-4] Do/g, (m) => ' '.repeat(m.length));
-    S.runs.forEach((r) => { if (r.text.indexOf('[√]') >= 0) S.uncheck(r); });
-  }
-  // values: { 열 이름: 값 }, meta: {id, station, center, time}
-  function fillFromRow(S, meta, values) {
-    prepareBlank(S);
-    F.forEach((f) => writeField(S, f, values ? values[f[0]] : ''));
-    writeMeta(S, meta);
-    if (!(values && clean(values['4.신고일시'])) && meta.time) {
-      writeField(S, F.find((f) => f[0] === '4.신고일시'), meta.time);
+  function readMeta(key, S) {
+    const D = FORMS[key], id = clean(S.runs[D.serial].text);
+    if (key === 'log') {
+      const aff = /^소속\s*:\s*(\S+)\s*(.*)$/.exec(clean(S.runs[286].text)) || [], o = parseDT(readField(S, F_LOG.find((f) => f[0] === '4.신고일시')));
+      return { id, station: aff[1] || '', center: clean(aff[2] || ''), time: o && o.h ? o.y + o.mo + o.d + o.h + o.mi + '00' : '' };
     }
+    return { id, station: clean(S.runs[D.station].text), center: clean(S.runs[D.center].text), time: '' };
   }
-
+  function readValues(key, S) {
+    const v = {}; FORMS[key].F.forEach((f) => { v[f[0]] = readField(S, f); });
+    return v;
+  }
+  function writeMeta(key, S, m) {
+    const D = FORMS[key];
+    S.set(S.runs[D.serial], m.id || ' ');
+    if (key === 'log') S.set(S.runs[286], '소속 : ' + (m.station || '') + ' ' + (m.center || ''));
+    else { S.set(S.runs[D.station], m.station || ' '); S.set(S.runs[D.center], m.center || ' '); }
+  }
+  // 가상 서명 그림 삭제 + 체크 모두 해제 → 표의 모든 칸을 엑셀 값(없으면 빈칸)으로 채움
+  function fillForm(key, S, meta, values) {
+    const D = FORMS[key];
+    S.src = S.src.replace(D.img, (m) => ' '.repeat(m.length));
+    S.runs.forEach((r) => { if (r.text.indexOf('[√]') >= 0) S.uncheck(r); });
+    D.F.forEach((f) => writeField(S, f, values ? values[f[0]] : ''));
+    writeMeta(key, S, meta);
+    if (key === 'log' && !(values && clean(values['4.신고일시'])) && meta.time) writeField(S, F_LOG.find((f) => f[0] === '4.신고일시'), meta.time);
+  }
   async function finishZ(t) { // 글자 스트림을 압축해서 저장 (쪽당 용량 1/2.5)
     const ref = t.doc.context.register(t.doc.context.flateStream(t.stream.serialize()));
     t.page.node.set(PDFLib.PDFName.of('Contents'), ref);
     return await t.doc.save();
   }
 
-  function drawMarks(page, font, items) {
+  /* ---------- 고칠 칸 표시 ---------- */
+  function runBox(S, i) {
+    const r = S.runs[i], top = S.top(r), w = Math.max(S.width(r.text, r.size), 12);
+    return [Math.max(2, r.x - 1), top - r.size * 0.95, Math.min(593, r.x + w + 1), top + r.size * 0.3];
+  }
+  // names: 일지는 오류 엑셀의 항목 이름, 세부상황표는 열 이름 → [{box:[x0,top,x1,bottom], label}]
+  function marksFor(key, S, names) {
+    const D = FORMS[key], out = [];
+    names.forEach((nm) => {
+      if (key === 'log') {
+        const it = LAYOUT.items && LAYOUT.items[nm];
+        if (it) out.push({ box: it.box, label: (/^\d+(?:\.\d+)?(?=\.\D)/.exec(nm) || [nm])[0] });
+      } else {
+        const n = D.F.findIndex((f) => f[0] === nm);
+        if (n >= 0) { const bs = D.F[n][3].map((i) => runBox(S, i)); out.push({ box: [Math.min(...bs.map((b) => b[0])), Math.min(...bs.map((b) => b[1])), Math.max(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3]))], label: String(n + 1) }); }
+      }
+    });
+    return out;
+  }
+  function drawMarks(page, font, marks) {
     const H = page.getHeight(), red = PDFLib.rgb(0.78, 0.16, 0.16);
-    items.forEach((e) => {
-      const it = LAYOUT.items && LAYOUT.items[e];
-      if (!it) return;
-      const b = it.box, pad = 1.5, num = (/^\d+(?:\.\d+)?(?=\.\D)/.exec(e) || [e])[0];
+    marks.forEach(({ box: b, label }) => {
+      const pad = 1.5;
       page.drawRectangle({ x: b[0] - pad, y: H - b[3] - pad, width: b[2] - b[0] + 2 * pad, height: b[3] - b[1] + 2 * pad,
         color: red, opacity: 0.14, borderColor: red, borderWidth: 1.5, borderOpacity: 1 });
-      page.drawText(num, { x: Math.max(1, b[0] - 11), y: H - b[1] - 7, size: 8, font, color: red });
+      page.drawText(label, { x: Math.max(1, b[0] - 11), y: H - b[1] - 7, size: 8, font, color: red });
     });
   }
 
-  // rows: [{meta, values, marks}] -> PDF 한 개(건마다 한 쪽)
-  async function buildPdf(rows, label) {
+  // pages: [{form, meta, values, names}] → PDF 한 개 (건마다 한 쪽). names 가 있으면 그 칸을 빨갛게 표시
+  async function buildPdf(pages, onProgress) {
     const out = await PDFLib.PDFDocument.create();
-    for (let n = 0; n < rows.length; n++) {
-      $('#x-state').textContent = label + ' 만드는 중 ' + (n + 1) + ' / ' + rows.length;
+    for (let n = 0; n < pages.length; n++) {
+      if (onProgress) onProgress(n + 1, pages.length);
       await tick();
-      const t = await loadTemplate('log');
-      fillFromRow(t.stream, rows[n].meta, rows[n].values);
+      const p = pages[n], t = await loadTemplate(FORMS[p.form].tpl);
+      fillForm(p.form, t.stream, p.meta, p.values);
+      const marks = p.names && p.names.length ? marksFor(p.form, t.stream, p.names) : [];
       const d = await PDFLib.PDFDocument.load(await finishZ(t));
-      if (rows[n].marks && rows[n].marks.length) drawMarks(d.getPage(0), await d.embedFont(PDFLib.StandardFonts.HelveticaBold), rows[n].marks);
+      if (marks.length) drawMarks(d.getPage(0), await d.embedFont(PDFLib.StandardFonts.HelveticaBold), marks);
       out.addPage((await out.copyPages(d, [0]))[0]);
     }
     return await out.save();
   }
 
-  /* ---------- ① 일지 만들기 → 엑셀 ---------- */
-  // generate({kind:'log'}) 와 같은 순서로 난수를 써서 같은 일지를 만들고, 일부러 넣은 오류가 바꾼 글자 덩어리를 항목으로 기록한다
-  async function genLog(seed, level) {
-    const rng = makeRng(seed), c = makeCtx(rng, rng() < 0.5 ? 'stroke' : 'trauma');
-    const chosen = pickErrors(c, ERR.log, level);
-    chosen.forEach((e) => e.plan && e.plan(c, level));
-    const t = await loadTemplate('log'), refs = buildLog(t.stream, c), flags = new Set(), notes = [];
-    chosen.forEach((e) => {
-      const before = t.stream.runs.map((r) => r.text);
-      const detail = e.apply(t.stream, refs, c);
-      t.stream.runs.forEach((r, i) => { if (r.text !== before[i] && RUN_ITEM[i]) flags.add(RUN_ITEM[i]); });
-      notes.push(e.desc + ': ' + detail);
+  /* ================= 엑셀 읽기 ================= */
+  // 모든 시트를 { 시트이름: {head, rows} } 로
+  async function readBook(file) {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' }), book = {};
+    wb.SheetNames.forEach((n) => {
+      const data = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: false, defval: '' });
+      if (data.length >= 2) book[n] = { head: data[0].map((h) => String(h).trim()), rows: data.slice(1).filter((r) => String(r[0]).trim()) };
     });
-    const values = {};
-    F.forEach((f) => { values[f[0]] = readField(t.stream, f); });
-    return { seed, serial: c.serial, meta: readMeta(t.stream), values, flags, notes };
+    return book;
   }
-  async function genMany(n) {
-    const level = +$('#level').value, s = $('#seed').value.trim();
-    const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
-    const rows = [];
-    for (let k = 0; k < n; k++) {
-      $('#x-state').textContent = '일지 만드는 중 ' + (k + 1) + ' / ' + n;
-      await tick();
-      rows.push(await genLog(base + k, level));
+  const rowMeta = (r) => ({ id: String(r[0]).trim(), station: String(r[1]).trim(), center: String(r[2]).trim(), time: String(r[3]).trim() });
+
+  // 엑셀 종류 알아보기: 'values'(값 엑셀) / 'errors'(오류 0·1 엑셀) / null
+  function detect(book) {
+    if (FORM_KEYS.some((k) => book[FORMS[k].sheet])) return 'values';
+    if (FORM_KEYS.some((k) => book[FORMS[k].errSheet])) return 'errors';
+    const name = Object.keys(book)[0], first = book[name];
+    if (!first) return null;
+    const rest = first.rows.map((r) => r.slice(META.length).map((v) => String(v).trim()));
+    if (first.head.indexOf('1.소속') >= 0 && first.head.indexOf('4.신고일시') >= 0 && rest.some((r) => r.some((v) => v && !/^[01]$/.test(v)))) { book[FORMS.log.sheet] = first; return 'values'; }
+    const flagish = first.head.length > META.length + 9 && rest.length && rest.every((r) => r.every((v) => /^[01]?$/.test(v)));
+    if (flagish) { book[FORMS.log.errSheet] = first; return 'errors'; }
+    return null;
+  }
+
+  // 값 엑셀 → 쪽 목록 (보고서번호 순서대로 일지, 심뇌혈관, 중증외상)
+  function valuePages(book) {
+    const order = [], per = {};
+    FORM_KEYS.forEach((k) => {
+      per[k] = {}; const sh = book[FORMS[k].sheet]; if (!sh) return;
+      sh.rows.forEach((r) => {
+        const m = rowMeta(r), values = {}; if (per[k][m.id]) return;
+        FORMS[k].F.forEach((f) => { const i = sh.head.indexOf(f[0]); values[f[0]] = i < 0 ? '' : String(r[i]).trim(); });
+        per[k][m.id] = { form: k, meta: m, values }; if (order.indexOf(m.id) < 0) order.push(m.id);
+      });
+    });
+    const pages = [];
+    order.forEach((id) => FORM_KEYS.forEach((k) => { if (per[k][id]) pages.push(per[k][id]); }));
+    return pages;
+  }
+  // 오류 엑셀 → 쪽 목록 (1로 표시된 칸이 있는 일지·세부상황표만)
+  function errorPages(book, excludeDeleted) {
+    const order = [], per = {};
+    FORM_KEYS.forEach((k) => {
+      per[k] = {}; const sh = book[FORMS[k].errSheet]; if (!sh) return;
+      const cols = sh.head.slice(META.length);
+      sh.rows.forEach((r) => {
+        const names = cols.filter((c, i) => String(r[META.length + i]).trim() === '1' && !(excludeDeleted && k === 'log' && c === DELETED_ITEM));
+        if (!names.length) return;
+        const m = rowMeta(r); per[k][m.id] = { form: k, meta: m, values: null, names }; if (order.indexOf(m.id) < 0) order.push(m.id);
+      });
+    });
+    const pages = [];
+    order.forEach((id) => FORM_KEYS.forEach((k) => { if (per[k][id]) pages.push(per[k][id]); }));
+    return pages;
+  }
+  const byCenter = (pages) => { const g = {}; pages.forEach((p) => { (g[p.meta.center || '센터없음'] = g[p.meta.center || '센터없음'] || []).push(p); }); return g; };
+
+  /* ================= 일지 세트 만들기 → 엑셀 ================= */
+  // generate({kind, level, seed}) 와 같은 순서로 난수를 써서 같은 문서를 만들고, 일부러 넣은 오류가 바꾼 칸을 기록한다
+  async function genSet(kind, level, seed) {
+    const rng = makeRng(seed), cfg = CONFIGS[kind] || CONFIGS.both;
+    const c = makeCtx(rng, cfg.scen || (rng() < 0.5 ? 'stroke' : 'trauma')), want = cfg.want, chosen = {};
+    want.forEach((f) => { chosen[f] = pickErrors(c, ERR[f], level); });
+    Object.values(chosen).flat().forEach((e) => e.plan && e.plan(c, level));
+    const out = { seed, serial: c.serial, forms: {}, notes: [] };
+    for (const f of want) {
+      const t = await loadTemplate(FORMS[f].tpl);
+      const refs = f === 'log' ? buildLog(t.stream, c) : f === 'cv' ? buildCv(t.stream, c) : buildTrauma(t.stream, c), flags = new Set();
+      chosen[f].forEach((e) => {
+        const before = t.stream.runs.map((r) => r.text), detail = e.apply(t.stream, refs, c);
+        t.stream.runs.forEach((r, i) => { if (r.text !== before[i] && FORMS[f].runField[i]) flags.add(FORMS[f].runField[i].item); });
+        out.notes.push([FORMS[f].title, e.desc + ': ' + detail]);
+      });
+      out.forms[f] = { meta: readMeta(f, t.stream), values: readValues(f, t.stream), flags };
     }
-    return { base, rows };
+    return out;
   }
-  const widths = (cols) => cols.map((c) => ({ wch: Math.min(40, Math.max(8, String(c).length * 2)) }));
-  function xlsxBlob(wb) { return new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }); }
+  async function genMany(n, kind, level, base, onProgress) {
+    const sets = [];
+    for (let k = 0; k < n; k++) { if (onProgress) onProgress(k + 1, n); await tick(); sets.push(await genSet(kind, level, base + k)); }
+    return sets;
+  }
+  const colWidths = (cols) => cols.map((c) => ({ wch: Math.min(40, Math.max(8, String(c).length * 2)) }));
+  const xlsxBlob = (wb) => new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  function valuesWorkbook(sets) {
+    const wb = XLSX.utils.book_new();
+    FORM_KEYS.forEach((k) => {
+      const rows = sets.filter((s) => s.forms[k]); if (!rows.length) return;
+      const cols = META.concat(FORMS[k].F.map((f) => f[0]));
+      const aoa = [cols].concat(rows.map((s) => { const x = s.forms[k]; return [x.meta.id || s.serial, x.meta.station, x.meta.center, x.meta.time].concat(FORMS[k].F.map((f) => x.values[f[0]])); }));
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
+      XLSX.utils.book_append_sheet(wb, ws, FORMS[k].sheet);
+    });
+    const help = [['구급일지 값 엑셀 안내'], [''],
+      ['· 시트마다 한 종류의 서식입니다(일지값 / 심뇌혈관 / 중증외상). 한 줄이 한 장입니다. 앞 4열은 오류 엑셀과 같은 모양입니다.'],
+      ['· 심뇌혈관·중증외상 시트의 보고서번호가 일지와 같으면 같은 사건으로 보고 PDF에서 이어서 나옵니다.'],
+      ['· 체크 칸은 선택한 항목 이름을 쉼표로 적습니다. 예: 13.신고방법 = 휴대전화 / 21.환자증상 = 흉통, 어지러움'],
+      ['· 같은 이름이 한 칸 안에 두 번 나오면 두 번째부터 이름 뒤에 #2 를 붙입니다.'],
+      ['· 25.활력징후는 시각 | 혈압 | 맥박 | 호흡 | 체온 | SpO2 순서이고 | 로 나눕니다.'],
+      ['· 27.발생시간 앞에 추정 이 있으면 추정 체크입니다. 27.평가소견은 줄바꿈 없이 써도 알아서 3줄로 나눕니다.'],
+      ['· 열에 없는 칸(서식 고정 글자 등)은 서식 기본 모양 그대로 나옵니다. 이 파일의 값은 모두 가상입니다.']];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(help), '안내');
+    return wb;
+  }
+  function errorWorkbook(sets) {
+    const wb = XLSX.utils.book_new();
+    FORM_KEYS.forEach((k) => {
+      const rows = sets.filter((s) => s.forms[k]); if (!rows.length) return;
+      const items = k === 'log' ? ITEMS : FORMS[k].F.map((f) => f[0]), cols = META.concat(items);
+      const aoa = [cols].concat(rows.map((s) => { const x = s.forms[k]; return [x.meta.id || s.serial, x.meta.station, x.meta.center, x.meta.time].concat(items.map((it) => (x.flags.has(it) ? '1' : '0'))); }));
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
+      XLSX.utils.book_append_sheet(wb, ws, FORMS[k].errSheet);
+    });
+    const notes = [['보고서번호', '서식', '일부러 넣은 오류']];
+    sets.forEach((s) => { if (s.notes.length) s.notes.forEach((n) => notes.push([s.serial, n[0], n[1]])); else notes.push([s.serial, '', '(없음)']); });
+    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 90 }];
+    XLSX.utils.book_append_sheet(wb, ns, '정답표');
+    return wb;
+  }
   function saveBlob(name, blob) {
     const url = URL.createObjectURL(blob), a = document.createElement('a');
     a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  function valuesWorkbook(rows) {
-    const cols = META.concat(F.map((f) => f[0])), wb = XLSX.utils.book_new();
-    const aoa = [cols].concat(rows.map((r) => [r.meta.id, r.meta.station, r.meta.center, r.meta.time].concat(F.map((f) => r.values[f[0]]))));
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = widths(cols); ws['!freeze'] = { xSplit: 1, ySplit: 1 };
-    XLSX.utils.book_append_sheet(wb, ws, '일지값');
-    const help = [['구급일지 값 엑셀 안내'], [''],
-      ['· 한 줄이 일지 한 장입니다. 앞 4열(보고서번호·소방서·출동센터·신고일시)은 오류 엑셀과 같은 모양입니다.'],
-      ['· 체크 칸은 선택한 항목 이름을 쉼표로 적습니다. 예: 13.신고방법 = 휴대전화 / 21.환자증상 = 흉통, 어지러움'],
-      ['· 같은 이름이 한 칸 안에 두 번 나오면 두 번째부터 이름 뒤에 #2 를 붙입니다.'],
-      ['· 25.활력징후는 시각 | 혈압 | 맥박 | 호흡 | 체온 | SpO2 순서이고 | 로 나눕니다.'],
-      ['· 27.발생시간 앞에 추정 이 있으면 추정 체크입니다. 27.평가소견은 줄바꿈 없이 써도 알아서 3줄로 나눕니다.'],
-      ['· 이 파일의 값은 모두 가상입니다. 이 엑셀을 [값 엑셀 → 구급활동일지 PDF]에 올리면 같은 일지가 PDF로 만들어집니다.']];
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(help), '안내');
-    return wb;
+  /* ================= 첫 화면 (파일을 놓으면 알아서 변환) ================= */
+  const H = { book: null, kind: null, file: null, result: null, busy: false };
+  const show = (sel, on) => { $(sel).hidden = !on; };
+  const mb = (n) => (n / 1048576).toFixed(1) + 'MB';
+  function setProgress(label, n, total) {
+    $('#h-prog-label').textContent = label + ' ' + n + ' / ' + total;
+    $('#h-prog-bar').style.width = Math.round((n / total) * 100) + '%';
   }
-  function errorWorkbook(rows) {
-    const cols = META.concat(ITEMS), wb = XLSX.utils.book_new();
-    const aoa = [cols].concat(rows.map((r) => [r.meta.id, r.meta.station, r.meta.center, r.meta.time].concat(ITEMS.map((it) => (r.flags.has(it) ? '1' : '0')))));
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = widths(cols);
-    XLSX.utils.book_append_sheet(wb, ws, '오류위치');
-    const notes = [['보고서번호', '일부러 넣은 오류']];
-    rows.forEach((r) => { if (r.notes.length) r.notes.forEach((n) => notes.push([r.meta.id, n])); else notes.push([r.meta.id, '(없음)']); });
-    const ns = XLSX.utils.aoa_to_sheet(notes); ns['!cols'] = [{ wch: 24 }, { wch: 90 }];
-    XLSX.utils.book_append_sheet(wb, ns, '정답표');
-    return wb;
+  function resetHome() {
+    H.book = H.kind = H.file = H.result = null;
+    show('#h-card', false); show('#h-drop', true); show('#h-samples', true); $('#h-error').textContent = '';
+    $('#h-file').value = '';
   }
-
-  /* ---------- 엑셀 읽기 ---------- */
-  async function readSheet(file, preferred) {
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    const name = wb.SheetNames.find((n) => n === preferred) || wb.SheetNames[0];
-    const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: '' });
-    if (data.length < 2) throw new Error('데이터가 없는 엑셀입니다');
-    return { head: data[0].map((h) => String(h).trim()), rows: data.slice(1).filter((r) => String(r[0]).trim()) };
-  }
-
-  /* ---------- ② 값 엑셀 → PDF ---------- */
-  async function valuesToPdf(file) {
-    const { head, rows } = await readSheet(file, '일지값');
-    const col = (r, name) => { const i = head.indexOf(name); return i < 0 ? '' : String(r[i]).trim(); };
-    const list = rows.map((r) => {
-      const values = {}; F.forEach((f) => { values[f[0]] = col(r, f[0]); });
-      return { meta: { id: col(r, '보고서번호'), station: col(r, '소방서'), center: col(r, '출동센터'), time: col(r, '신고일시') }, values, marks: [] };
+  function describe(book, kind) {
+    const parts = [], ids = new Set(), centers = new Set();
+    FORM_KEYS.forEach((k) => {
+      const sh = book[kind === 'values' ? FORMS[k].sheet : FORMS[k].errSheet]; if (!sh) return;
+      sh.rows.forEach((r) => { ids.add(String(r[0]).trim()); if (String(r[2]).trim()) centers.add(String(r[2]).trim()); });
+      parts.push(FORMS[k].title + ' ' + sh.rows.length + '건');
     });
-    return { bytes: await buildPdf(list, '일지'), n: list.length };
+    return { text: parts.join(' · '), ids: ids.size, centers: centers.size };
   }
-
-  /* ---------- ③ 오류 엑셀(0/1) → 수정 칸 표시 PDF ---------- */
-  async function errorsToPdf(file, excludeDeleted, zip) {
-    const { head, rows } = await readSheet(file, '오류위치');
-    const items = head.slice(META.length), list = [];
-    rows.forEach((r) => {
-      const marks = items.filter((it, i) => String(r[META.length + i]).trim() === '1' && !(excludeDeleted && it === DELETED_ITEM));
-      if (marks.length) list.push({ meta: { id: String(r[0]).trim(), station: String(r[1]).trim(), center: String(r[2]).trim(), time: String(r[3]).trim() }, values: null, marks });
+  async function convert() {
+    if (H.busy || !H.book) return;
+    H.busy = true; H.result = null;
+    show('#h-done', false); show('#h-prog', true); $('#h-error').textContent = '';
+    try {
+      const zip = H.kind === 'errors' && $('input[name=h-out]:checked').value === 'zip';
+      const pages = H.kind === 'values' ? valuePages(H.book) : errorPages(H.book, $('#h-exc').checked);
+      if (!pages.length) throw new Error(H.kind === 'errors' ? '수정이 필요한 일지(1로 표시된 칸)가 없습니다' : '변환할 줄이 없습니다');
+      const prog = (n, total) => setProgress('만드는 중', n, total);
+      if (zip) {
+        const files = [], groups = byCenter(pages); let done = 0;
+        for (const c of Object.keys(groups).sort()) { files.push({ name: '일지_' + c + '.pdf', data: await buildPdf(groups[c], (n) => setProgress('만드는 중', done + n, pages.length)) }); done += groups[c].length; }
+        const blob = makeZip(files);
+        H.result = { name: 'ilji_marked_by_center.zip', blob, pages: pages.length, note: '센터 ' + files.length + '곳' };
+      } else {
+        const bytes = await buildPdf(pages, prog), blob = new Blob([bytes], { type: 'application/pdf' });
+        H.result = { name: H.kind === 'values' ? 'ilji_from_excel.pdf' : 'ilji_marked.pdf', blob, pages: pages.length, note: '' };
+      }
+      $('#h-done-title').textContent = H.result.pages + '쪽 완성' + (H.result.note ? ' · ' + H.result.note : '') + ' · ' + mb(H.result.blob.size);
+      $('#h-preview').hidden = H.result.name.endsWith('.zip'); $('#h-frame').innerHTML = '';
+      show('#h-done', true);
+    } catch (e) { console.error(e); $('#h-error').textContent = '만들지 못했습니다: ' + (e.message || e); }
+    show('#h-prog', false); H.busy = false;
+  }
+  async function handleFile(file) {
+    if (H.busy || !file) return;
+    resetHome(); H.file = file; $('#h-error').textContent = '';
+    try {
+      H.book = await readBook(file); H.kind = detect(H.book);
+      if (!H.kind) throw new Error('이 엑셀이 어떤 종류인지 알아보지 못했습니다. 구급일지 값 엑셀(시트 이름: 일지값) 또는 월별 오류 엑셀(앞 4열 + 항목별 0/1)을 올려 주세요');
+    } catch (e) { $('#h-error').textContent = e.message || String(e); return; }
+    const d = describe(H.book, H.kind), values = H.kind === 'values';
+    $('#h-file-name').textContent = file.name;
+    $('#h-kind').textContent = values ? '값 엑셀로 인식했어요' : '오류 엑셀(0/1)로 인식했어요';
+    $('#h-kind-sub').textContent = d.text + (d.centers ? ' · 센터 ' + d.centers + '곳' : '');
+    $('#h-goal').textContent = values ? '→ 구급일지·세부상황표 PDF로 바꿉니다 (값을 채운 일지)' : '→ 고칠 칸이 빨갛게 표시된 구급일지 PDF로 바꿉니다 (환자 값은 비움)';
+    show('#h-opts', !values); show('#h-drop', false); show('#h-samples', false); show('#h-card', true);
+    await convert();
+  }
+  function bindHome() {
+    const drop = $('#h-drop'), input = $('#h-file');
+    input.addEventListener('change', () => { if (input.files[0]) handleFile(input.files[0]); });
+    drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+    ['dragenter', 'dragover'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => window.addEventListener(ev, (e) => { if ($('#x-home').hidden) return; stop(e); if (ev === 'drop' || e.target === document.documentElement || e.relatedTarget === null) drop.classList.remove('over'); }));
+    window.addEventListener('drop', (e) => { if ($('#x-home').hidden) return; const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && !H.busy) handleFile(f); });
+    $('#h-reset').addEventListener('click', resetHome);
+    $('#h-again').addEventListener('click', resetHome);
+    $('#h-exc').addEventListener('change', () => { if (H.kind === 'errors') convert(); });
+    document.querySelectorAll('input[name=h-out]').forEach((r) => r.addEventListener('change', () => { if (H.kind === 'errors') convert(); }));
+    $('#h-save').addEventListener('click', () => { if (H.result) saveBlob(H.result.name, H.result.blob); });
+    $('#h-preview').addEventListener('click', () => {
+      const box = $('#h-frame'); if (box.firstChild) { box.innerHTML = ''; return; }
+      const f = document.createElement('iframe'); f.src = URL.createObjectURL(H.result.blob); box.appendChild(f);
     });
-    if (!list.length) throw new Error('수정이 필요한 일지(1로 표시된 칸)가 없습니다');
-    list.sort((a, b) => ((a.meta.center + a.meta.id) < (b.meta.center + b.meta.id) ? -1 : 1));
-    if (!zip) return { bytes: await buildPdf(list, '수정 칸 표시 일지'), n: list.length, zip: false };
-    const files = [], centers = [...new Set(list.map((x) => x.meta.center))];
-    for (const c of centers) files.push({ name: '일지_' + (c || '센터없음') + '.pdf', data: await buildPdf(list.filter((x) => x.meta.center === c), c || '센터없음') });
-    return { zip: makeZip(files), n: list.length, centers: centers.length };
+    // 연습용 파일: 값 엑셀 / 오류 엑셀 3건
+    const sample = (which) => async () => {
+      const sets = await genMany(3, 'both', 1, 20260101);
+      saveBlob(which === 'values' ? 'ilji_sample_values.xlsx' : 'ilji_sample_errors.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
+    };
+    $('#h-sample-v').addEventListener('click', sample('values'));
+    $('#h-sample-e').addEventListener('click', sample('errors'));
+    // 탭
+    document.querySelectorAll('.x-tab').forEach((t) => t.addEventListener('click', () => {
+      document.querySelectorAll('.x-tab').forEach((x) => x.setAttribute('aria-selected', String(x === t)));
+      $('#x-home').hidden = t.dataset.tab !== 'home'; $('#x-gen').hidden = t.dataset.tab !== 'gen';
+    }));
   }
 
-  /* ---------- 화면 ---------- */
+  /* ================= 시험용 일지 만들기 탭의 엑셀 내보내기 ================= */
   let busy = false;
   async function run(fn) {
-    if (busy) return;
-    busy = true;
+    if (busy) return; busy = true;
     try { await fn(); } catch (e) { console.error(e); $('#x-state').textContent = '만들지 못했습니다: ' + (e.message || e); }
     busy = false;
   }
-  $('#x-val').addEventListener('click', () => run(async () => {
-    const n = Math.max(1, Math.min(500, +$('#x-n').value || 1)), g = await genMany(n);
-    saveBlob('ilji_values.xlsx', xlsxBlob(valuesWorkbook(g.rows)));
-    $('#x-state').textContent = '일지 ' + n + '건(시드 ' + g.base + '~)의 값을 ilji_values.xlsx 로 저장했습니다.';
-  }));
-  $('#x-err').addEventListener('click', () => run(async () => {
-    const n = Math.max(1, Math.min(500, +$('#x-n').value || 1)), g = await genMany(n);
-    saveBlob('ilji_errors_01.xlsx', xlsxBlob(errorWorkbook(g.rows)));
-    $('#x-state').textContent = '일부러 넣은 오류 위치(0/1) ' + n + '건(시드 ' + g.base + '~)을 ilji_errors_01.xlsx 로 저장했습니다. 같은 시드·오류 수준이면 값 엑셀과 같은 일지입니다.';
-  }));
-  $('#x-go1').addEventListener('click', () => run(async () => {
-    const f = $('#x-f1').files[0]; if (!f) { $('#x-state').textContent = '값 엑셀 파일을 먼저 고르세요.'; return; }
-    const r = await valuesToPdf(f);
-    saveBlob('ilji_from_excel.pdf', new Blob([r.bytes], { type: 'application/pdf' }));
-    $('#x-state').textContent = '일지 ' + r.n + '쪽을 ilji_from_excel.pdf 로 저장했습니다.';
-  }));
-  $('#x-go2').addEventListener('click', () => run(async () => {
-    const f = $('#x-f2').files[0]; if (!f) { $('#x-state').textContent = '오류 엑셀 파일을 먼저 고르세요.'; return; }
-    const zip = $('#x-mode').value === 'zip', r = await errorsToPdf(f, $('#x-exc').checked, zip);
-    if (r.zip) { saveBlob('ilji_marked_by_center.zip', r.zip); $('#x-state').textContent = '센터 ' + r.centers + '곳(일지 ' + r.n + '건)을 ilji_marked_by_center.zip 으로 저장했습니다.'; }
-    else { saveBlob('ilji_marked.pdf', new Blob([r.bytes], { type: 'application/pdf' })); $('#x-state').textContent = '수정이 필요한 일지 ' + r.n + '쪽을 ilji_marked.pdf 로 저장했습니다.'; }
-  }));
+  function exportExcel(which) {
+    return run(async () => {
+      const n = Math.max(1, Math.min(500, +$('#x-n').value || 1)), kind = $('#kind').value, level = +$('#level').value, s = $('#seed').value.trim();
+      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
+      const sets = await genMany(n, kind, level, base, (k, t) => { $('#x-state').textContent = '일지 만드는 중 ' + k + ' / ' + t; });
+      saveBlob(which === 'values' ? 'ilji_values.xlsx' : 'ilji_errors_01.xlsx', xlsxBlob(which === 'values' ? valuesWorkbook(sets) : errorWorkbook(sets)));
+      $('#x-state').textContent = n + '건(시드 ' + base + '~)을 저장했습니다. 값 엑셀과 오류 엑셀은 같은 시드·구성·오류 수준이면 같은 일지입니다. 첫 화면에 올리면 PDF가 됩니다.';
+    });
+  }
+  $('#x-val').addEventListener('click', () => exportExcel('values'));
+  $('#x-err').addEventListener('click', () => exportExcel('errors'));
+  bindHome();
 
   // 시험·확인용
-  window.__xl = { F, ITEMS, genLog, genMany, valuesWorkbook, errorWorkbook, valuesToPdf, errorsToPdf, readField, parseOpts, fieldOpts };
+  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, handleFile, H };
 })();
