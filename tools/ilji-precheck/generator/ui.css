@@ -33,3 +33,6 @@
 .s-hint{margin:auto 0 0;font-size:12px;color:var(--muted)}
 .s-help{margin-top:auto;font-size:13px;color:var(--muted)}.s-help summary{cursor:pointer;font-weight:700}.s-help ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:6px}
 .s-foot{max-width:1500px;margin:0 auto;padding:6px 28px 40px}
+.s-dl{display:grid;gap:8px}.s-dl-row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
+.s-dl-row .s-btn{padding:10px 12px;font-size:15px}
+.s-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}

@@ -675,44 +675,47 @@
     });
     return L.join('\n');
   }
-  async function p1Make() {
+  // 연습용 파일 한 가지를 만들어 바로 받는다. which: 'pdf'(PDF) | 'xv'(값 엑셀) | 'xe'(오류 위치 0/1 엑셀)
+  async function p1Make(which) {
     if (P1.busy) return;
     P1.busy = true; P1.clear();
+    const btns = ['#p1-pdf', '#p1-xv', '#p1-xe'].map((x) => $(x)); btns.forEach((x) => { x.disabled = true; });
     try {
-      const wantPdf = $('#p1-pdf').checked, xv = $('#p1-xv').checked, xe = $('#p1-xe').checked;
-      if (!(wantPdf || xv || xe)) throw new Error('받을 파일을 하나 이상 고르세요');
-      const kind = $('#p1-kind').value, level = +$('#p1-level').value, s = $('#p1-seed').value.trim(), maxN = wantPdf ? 100 : 500;
+      const wantPdf = which === 'pdf', zip = wantPdf && $('#p1-zip').checked;
+      const kind = $('#p1-kind').value, level = +$('#p1-level').value, maxN = wantPdf ? 100 : 500;
       const n = Math.max(1, Math.min(maxN, +$('#p1-n').value || 1)); $('#p1-n').value = n;
-      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
+      let s = $('#p1-seed').value.trim();
+      if (!s) { s = String(Math.floor(Math.random() * 1e8)); $('#p1-seed').value = s; } // 세 버튼이 같은 일지가 되도록 시드를 칸에 남긴다
+      const base = parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
       const sets = await genMany(n, kind, level, base, (k, t) => P1.prog('일지 세트 만드는 중', k, t), wantPdf);
-      const files = [];
-      if (wantPdf) { sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes }))); files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) }); }
-      if (xv) files.push({ name: 'ilji_values.xlsx', data: xlsxBytes(valuesWorkbook(sets)) });
-      if (xe) files.push({ name: 'ilji_errors_01.xlsx', data: xlsxBytes(errorWorkbook(sets)) });
-      const single = files.length === 1, res = single
-        ? { name: files[0].name, blob: new Blob([files[0].data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) }
-        : { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) };
-      P1.done('일지 세트 ' + n + '건 완성 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · ' + (single ? '엑셀 1개' : 'ZIP 안에 ' + files.length + '개 파일'), res);
+      let res, what;
+      if (which === 'xv') { res = { name: 'ilji_values.xlsx', blob: xlsxBlob(valuesWorkbook(sets)) }; what = '값 엑셀'; }
+      else if (which === 'xe') { res = { name: 'ilji_errors_01.xlsx', blob: xlsxBlob(errorWorkbook(sets)) }; what = '0/1 엑셀'; }
+      else if (zip) {
+        const files = []; sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes })));
+        files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) });
+        res = { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) }; what = '문서별 PDF + 정답표 ZIP';
+      } else {
+        const all = sets.flatMap((x) => x.pdfs), out = await PDFLib.PDFDocument.create();
+        for (let i = 0; i < all.length; i++) { P1.prog('PDF 합치는 중', i + 1, all.length); await tick(); out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(all[i].bytes), [0]))[0]); }
+        res = { name: 'ilji_random_' + base + '.pdf', blob: new Blob([await out.save()], { type: 'application/pdf' }) }; what = 'PDF 한 개(' + all.length + '쪽)';
+      }
+      saveBlob(res.name, res.blob);
+      P1.done(what + ' 저장 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · 시드·구성·오류 수준이 같으면 세 파일은 같은 일지예요', res);
     } catch (e) { console.error(e); P1.err('만들지 못했습니다: ' + (e.message || e)); }
-    P1.endProg(); P1.busy = false;
+    P1.endProg(); P1.busy = false; btns.forEach((x) => { x.disabled = false; });
   }
 
-  /* ---------- 연습용 파일 · 연결 ---------- */
-  const sample = (fn) => async (ev) => { const b = ev.currentTarget; b.disabled = true; try { await fn(); } finally { b.disabled = false; } };
-  $('#p2-sv').addEventListener('click', sample(async () => saveBlob('ilji_sample_values.xlsx', xlsxBlob(valuesWorkbook(await genMany(3, 'both', 1, 20260101))))));
-  $('#p2-se').addEventListener('click', sample(async () => saveBlob('ilji_sample_errors.xlsx', xlsxBlob(errorWorkbook(await genMany(3, 'both', 1, 20260101))))));
-  $('#p3-sp').addEventListener('click', sample(async () => {
-    const sets = await genMany(1, 'both', 1, 20260101, null, true), out = await PDFLib.PDFDocument.create();
-    for (const p of sets[0].pdfs) out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(p.bytes), [0]))[0]);
-    saveBlob('ilji_sample.pdf', new Blob([await out.save()], { type: 'application/pdf' }));
-  }));
+  /* ---------- 연결 ---------- */
   wireDrop('p2', p2Handle, false);
   wireDrop('p3', p3Handle, true);
   $('#p2-again').addEventListener('click', p2Reset);
   $('#p3-again').addEventListener('click', p3Reset);
   $('#p2-exc').addEventListener('change', p2Convert);
   document.querySelectorAll('input[name=p2-out]').forEach((r) => r.addEventListener('change', p2Convert));
-  $('#p1-go').addEventListener('click', p1Make);
+  $('#p1-pdf').addEventListener('click', () => p1Make('pdf'));
+  $('#p1-xv').addEventListener('click', () => p1Make('xv'));
+  $('#p1-xe').addEventListener('click', () => p1Make('xe'));
   $('#p1-again').addEventListener('click', () => P1.clear());
   const orig = $('#x-gen'), tog = $('#x-orig');
   if (orig && tog) tog.addEventListener('click', () => { orig.hidden = !orig.hidden; tog.textContent = orig.hidden ? '원래 생성기 화면(문서별 미리보기·정답표) 열기' : '원래 생성기 화면 닫기'; });

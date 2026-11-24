@@ -61,6 +61,9 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
 .s-hint{margin:auto 0 0;font-size:12px;color:var(--muted)}
 .s-help{margin-top:auto;font-size:13px;color:var(--muted)}.s-help summary{cursor:pointer;font-weight:700}.s-help ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:6px}
 .s-foot{max-width:1500px;margin:0 auto;padding:6px 28px 40px}
+.s-dl{display:grid;gap:8px}.s-dl-row{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
+.s-dl-row .s-btn{padding:10px 12px;font-size:15px}
+.s-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}
 </style>
 </head>
 <body>
@@ -73,7 +76,7 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
 
   <!-- ① 랜덤 일지 만들기 -->
   <section class="s-panel" id="p1">
-    <div class="s-head"><span class="s-num">1</span><div><h2>랜덤 일지 만들기</h2><p>시험용 가상 일지를 PDF나 엑셀로 만듭니다</p></div></div>
+    <div class="s-head"><span class="s-num">1</span><div><h2>랜덤 일지 · 연습용 파일</h2><p>②·③에 올려 볼 가상 일지를 만듭니다</p></div></div>
     <div class="s-form">
       <label class="s-f">구성
         <select id="p1-kind"><option value="both">일지 + 심뇌혈관 + 중증외상 (3종 세트)</option><option value="log">일지 1개</option><option value="log+trauma">일지 + 중증외상</option><option value="log+cv">일지 + 심뇌혈관</option><option value="trauma">중증외상 1개</option><option value="cv">심뇌혈관 1개</option></select></label>
@@ -83,21 +86,21 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
         <label class="s-f">몇 건<input type="number" id="p1-n" value="5" min="1" max="500"></label>
         <label class="s-f">시드 (비우면 무작위)<input type="text" id="p1-seed" placeholder="예: 12345" inputmode="numeric"></label>
       </div>
-      <fieldset class="s-out"><legend>받을 파일</legend>
-        <label><input type="checkbox" id="p1-pdf" checked> 구급일지 PDF <small>(정답표 포함)</small></label>
-        <label><input type="checkbox" id="p1-xv" checked> 값 엑셀</label>
-        <label><input type="checkbox" id="p1-xe"> 오류 위치 엑셀(0/1)</label>
-      </fieldset>
-      <button class="s-btn primary" id="p1-go" type="button">만들기</button>
+      <div class="s-dl">
+        <div class="s-dl-row"><button class="s-btn primary" id="p1-pdf" type="button">PDF로 받기</button><span>③ PDF → 엑셀에 올려 보세요</span></div>
+        <div class="s-dl-row"><button class="s-btn" id="p1-xv" type="button">값 엑셀로 받기</button><span>② 엑셀 → PDF에 올려 보세요</span></div>
+        <div class="s-dl-row"><button class="s-btn" id="p1-xe" type="button">0/1 엑셀로 받기</button><span>②에 올리면 고칠 칸이 표시된 PDF</span></div>
+      </div>
+      <label class="s-chk"><input type="checkbox" id="p1-zip"> PDF를 문서별로 나눠 정답표와 ZIP으로 (검증기 시험용)</label>
     </div>
     <div id="p1-prog" class="s-prog" hidden><div class="s-bar"><div id="p1-bar"></div></div><div id="p1-plabel" class="s-sub"></div></div>
     <div id="p1-done" class="s-done" hidden>
       <div class="s-ok"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg><span id="p1-title"></span></div>
       <div id="p1-sub" class="s-sub"></div>
-      <div class="s-btns"><button id="p1-save" class="s-btn primary" type="button">받기</button><button id="p1-again" class="s-btn" type="button">닫기</button></div>
+      <div class="s-btns"><button id="p1-save" class="s-btn primary" type="button">다시 받기</button><button id="p1-again" class="s-btn" type="button">닫기</button></div>
     </div>
     <p id="p1-err" class="s-err" role="alert"></p>
-    <p class="s-hint">두 개 이상 고르면 ZIP 하나로 받습니다. 같은 시드면 같은 일지가 나옵니다. PDF는 100건까지.</p>
+    <p class="s-hint">시드를 비워 두면 첫 버튼에서 정해져 칸에 채워지고, 세 버튼은 그 시드로 같은 일지를 만듭니다. PDF는 100건까지.</p>
   </section>
 
   <!-- ② 엑셀 → PDF -->
@@ -109,7 +112,7 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
       <span class="s-drop-t">엑셀 파일을 여기에 놓으세요</span>
       <span class="s-drop-s">또는 <b>파일 선택</b> · .xlsx</span>
     </label>
-    <div id="p2-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p2-sv" type="button">값 엑셀</button><button class="s-link" id="p2-se" type="button">오류 엑셀(0/1)</button></div>
+    <div id="p2-samples" class="s-samples"><span>연습용 엑셀은 ①에서 받을 수 있어요</span></div>
     <div id="p2-card" class="s-card" hidden>
       <div class="s-top">
         <div class="s-who"><div id="p2-name" class="s-fname"></div><div id="p2-kind" class="s-kind"></div><div id="p2-info" class="s-sub"></div></div>
@@ -141,7 +144,7 @@ pre{white-space:pre-wrap;margin:0;font-family:ui-monospace,Consolas,'D2Coding',m
       <span class="s-drop-t">PDF 파일을 여기에 놓으세요</span>
       <span class="s-drop-s">여러 개도 한꺼번에 · 또는 <b>파일 선택</b></span>
     </label>
-    <div id="p3-samples" class="s-samples"><span>연습용 받기</span><button class="s-link" id="p3-sp" type="button">연습용 PDF(3종 세트)</button></div>
+    <div id="p3-samples" class="s-samples"><span>연습용 PDF는 ①에서 받을 수 있어요</span></div>
     <div id="p3-card" class="s-card" hidden>
       <div class="s-top">
         <div class="s-who"><div id="p3-name" class="s-fname"></div><div id="p3-kind" class="s-kind"></div><div id="p3-info" class="s-sub"></div></div>
@@ -1547,44 +1550,47 @@ break;case"<bookViews":;case"<bookViews>":;case"</bookViews>":break;case"<workbo
     });
     return L.join('\n');
   }
-  async function p1Make() {
+  // 연습용 파일 한 가지를 만들어 바로 받는다. which: 'pdf'(PDF) | 'xv'(값 엑셀) | 'xe'(오류 위치 0/1 엑셀)
+  async function p1Make(which) {
     if (P1.busy) return;
     P1.busy = true; P1.clear();
+    const btns = ['#p1-pdf', '#p1-xv', '#p1-xe'].map((x) => $(x)); btns.forEach((x) => { x.disabled = true; });
     try {
-      const wantPdf = $('#p1-pdf').checked, xv = $('#p1-xv').checked, xe = $('#p1-xe').checked;
-      if (!(wantPdf || xv || xe)) throw new Error('받을 파일을 하나 이상 고르세요');
-      const kind = $('#p1-kind').value, level = +$('#p1-level').value, s = $('#p1-seed').value.trim(), maxN = wantPdf ? 100 : 500;
+      const wantPdf = which === 'pdf', zip = wantPdf && $('#p1-zip').checked;
+      const kind = $('#p1-kind').value, level = +$('#p1-level').value, maxN = wantPdf ? 100 : 500;
       const n = Math.max(1, Math.min(maxN, +$('#p1-n').value || 1)); $('#p1-n').value = n;
-      const base = s ? (parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7)) : Math.floor(Math.random() * 1e8);
+      let s = $('#p1-seed').value.trim();
+      if (!s) { s = String(Math.floor(Math.random() * 1e8)); $('#p1-seed').value = s; } // 세 버튼이 같은 일지가 되도록 시드를 칸에 남긴다
+      const base = parseInt(s, 10) || [...s].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
       const sets = await genMany(n, kind, level, base, (k, t) => P1.prog('일지 세트 만드는 중', k, t), wantPdf);
-      const files = [];
-      if (wantPdf) { sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes }))); files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) }); }
-      if (xv) files.push({ name: 'ilji_values.xlsx', data: xlsxBytes(valuesWorkbook(sets)) });
-      if (xe) files.push({ name: 'ilji_errors_01.xlsx', data: xlsxBytes(errorWorkbook(sets)) });
-      const single = files.length === 1, res = single
-        ? { name: files[0].name, blob: new Blob([files[0].data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) }
-        : { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) };
-      P1.done('일지 세트 ' + n + '건 완성 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · ' + (single ? '엑셀 1개' : 'ZIP 안에 ' + files.length + '개 파일'), res);
+      let res, what;
+      if (which === 'xv') { res = { name: 'ilji_values.xlsx', blob: xlsxBlob(valuesWorkbook(sets)) }; what = '값 엑셀'; }
+      else if (which === 'xe') { res = { name: 'ilji_errors_01.xlsx', blob: xlsxBlob(errorWorkbook(sets)) }; what = '0/1 엑셀'; }
+      else if (zip) {
+        const files = []; sets.forEach((x) => x.pdfs.forEach((p) => files.push({ name: p.name, data: p.bytes })));
+        files.push({ name: '정답표.txt', data: new TextEncoder().encode(keyText(sets)) });
+        res = { name: 'ilji_random_' + base + '.zip', blob: makeZip(files) }; what = '문서별 PDF + 정답표 ZIP';
+      } else {
+        const all = sets.flatMap((x) => x.pdfs), out = await PDFLib.PDFDocument.create();
+        for (let i = 0; i < all.length; i++) { P1.prog('PDF 합치는 중', i + 1, all.length); await tick(); out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(all[i].bytes), [0]))[0]); }
+        res = { name: 'ilji_random_' + base + '.pdf', blob: new Blob([await out.save()], { type: 'application/pdf' }) }; what = 'PDF 한 개(' + all.length + '쪽)';
+      }
+      saveBlob(res.name, res.blob);
+      P1.done(what + ' 저장 · ' + mb(res.blob.size), '시드 ' + base + (n > 1 ? '~' + (base + n - 1) : '') + ' · 시드·구성·오류 수준이 같으면 세 파일은 같은 일지예요', res);
     } catch (e) { console.error(e); P1.err('만들지 못했습니다: ' + (e.message || e)); }
-    P1.endProg(); P1.busy = false;
+    P1.endProg(); P1.busy = false; btns.forEach((x) => { x.disabled = false; });
   }
 
-  /* ---------- 연습용 파일 · 연결 ---------- */
-  const sample = (fn) => async (ev) => { const b = ev.currentTarget; b.disabled = true; try { await fn(); } finally { b.disabled = false; } };
-  $('#p2-sv').addEventListener('click', sample(async () => saveBlob('ilji_sample_values.xlsx', xlsxBlob(valuesWorkbook(await genMany(3, 'both', 1, 20260101))))));
-  $('#p2-se').addEventListener('click', sample(async () => saveBlob('ilji_sample_errors.xlsx', xlsxBlob(errorWorkbook(await genMany(3, 'both', 1, 20260101))))));
-  $('#p3-sp').addEventListener('click', sample(async () => {
-    const sets = await genMany(1, 'both', 1, 20260101, null, true), out = await PDFLib.PDFDocument.create();
-    for (const p of sets[0].pdfs) out.addPage((await out.copyPages(await PDFLib.PDFDocument.load(p.bytes), [0]))[0]);
-    saveBlob('ilji_sample.pdf', new Blob([await out.save()], { type: 'application/pdf' }));
-  }));
+  /* ---------- 연결 ---------- */
   wireDrop('p2', p2Handle, false);
   wireDrop('p3', p3Handle, true);
   $('#p2-again').addEventListener('click', p2Reset);
   $('#p3-again').addEventListener('click', p3Reset);
   $('#p2-exc').addEventListener('change', p2Convert);
   document.querySelectorAll('input[name=p2-out]').forEach((r) => r.addEventListener('change', p2Convert));
-  $('#p1-go').addEventListener('click', p1Make);
+  $('#p1-pdf').addEventListener('click', () => p1Make('pdf'));
+  $('#p1-xv').addEventListener('click', () => p1Make('xv'));
+  $('#p1-xe').addEventListener('click', () => p1Make('xe'));
   $('#p1-again').addEventListener('click', () => P1.clear());
   const orig = $('#x-gen'), tog = $('#x-orig');
   if (orig && tog) tog.addEventListener('click', () => { orig.hidden = !orig.hidden; tog.textContent = orig.hidden ? '원래 생성기 화면(문서별 미리보기·정답표) 열기' : '원래 생성기 화면 닫기'; });
