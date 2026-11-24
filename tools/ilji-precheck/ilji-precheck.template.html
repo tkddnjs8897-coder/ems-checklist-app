@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 외부 통신 전면 차단: 파일은 이 브라우저 안에서만 처리된다 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:">
+<title>구급일지 수정 요청</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --mute:#5d6676; --line:#d9dde4; --accent:#c62828; --ok:#1b6e3c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171c; --card:#1d2128; --ink:#e8eaee; --mute:#9aa3b2; --line:#323945; --accent:#ef6b6b; --ok:#5cc58a; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:15px/1.5 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.sub { margin:0 0 20px; color:var(--mute); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .drop { display:block; border:2px dashed var(--line); text-align:center; padding:28px 12px; cursor:pointer; }
+  .drop.over { border-color:var(--accent); }
+  .drop input { display:none; }
+  .stats { display:flex; gap:12px; flex-wrap:wrap; }
+  .stat { flex:1 1 140px; }
+  .stat b { display:block; font-size:24px; }
+  .stat span { color:var(--mute); font-size:12px; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  select, input[type=search], button { font:inherit; padding:6px 10px; border:1px solid var(--line);
+         border-radius:6px; background:var(--card); color:var(--ink); }
+  button { cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mute); font-weight:600; white-space:nowrap; }
+  .chip { display:inline-block; border:1px solid var(--accent); color:var(--accent); border-radius:999px;
+          padding:0 8px; margin:1px 4px 1px 0; font-size:12px; white-space:nowrap; }
+  .scroll { overflow-x:auto; }
+  .note { color:var(--mute); font-size:12px; margin-top:8px; }
+  #msg { color:var(--accent); margin-top:8px; }
+  #print { display:none; }
+  @page { margin:15mm; }
+  @media print {
+    body { background:#fff; color:#000; }
+    main { display:none; }
+    #print { display:block; }
+    #print section { page-break-after:always; }
+    #print section:last-child { page-break-after:auto; }
+    #print h2 { font-size:16px; margin:0 0 4px; }
+    #print th, #print td { border:1px solid #888; color:#000; }
+    #print .chip { border:0; color:#000; padding:0; display:block; }
+    #print .chip::before { content:"□ "; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>구급일지 수정 요청</h1>
+  <p class="sub">오류 엑셀(0/1)을 올리면 수정이 필요한 일지와 항목을 정리합니다. 파일은 이 브라우저 밖으로 나가지 않습니다.</p>
+
+  <label class="card drop" id="drop">
+    <input type="file" id="file" accept=".xlsx,.xls,.csv">
+    <strong>오류 엑셀 파일을 끌어다 놓거나 클릭해서 선택</strong>
+    <div class="note">앞 4열: 보고서번호·소방서·출동센터·신고일시 / 이후 열: 항목별 0(정상)·1(수정 필요)</div>
+    <div id="msg"></div>
+  </label>
+
+  <div id="result" hidden>
+    <div class="card stats" id="stats"></div>
+
+    <div class="card">
+      <div class="bar">
+        <select id="fCenter"></select>
+        <select id="fItem"></select>
+        <input type="search" id="fText" placeholder="보고서번호 검색">
+        <span style="flex:1"></span>
+        <button id="btnXlsx">엑셀로 저장</button>
+        <button id="btnPrint" class="primary">센터별 수정요청서 인쇄/PDF</button>
+      </div>
+      <div class="scroll"><table id="list"><thead><tr>
+        <th>보고서번호</th><th>소방서</th><th>출동센터</th><th>신고일시</th><th>수정 필요 항목</th>
+      </tr></thead><tbody></tbody></table></div>
+      <div class="note" id="count"></div>
+    </div>
+
+    <div class="card">
+      <strong>항목별 오류 건수</strong>
+      <div class="scroll"><table id="sum"><thead><tr><th>항목</th><th>건수</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="note">이 도구는 고쳐야 할 항목만 알려 줍니다. 올바른 값은 대원이 확인해 공식 시스템에서 수정해야 합니다.</div>
+  </div>
+</main>
+<div id="print"></div>
+
+<script>
+/* SheetJS Community Edition 0.18.5 (Apache-2.0) https://sheetjs.com */
+/*__XLSX__*/
+</script>
+<script>
+(function () {
+  var META = 4, rows = [], items = [], clean = 0;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function el(tag, text, cls) {
+    var e = document.createElement(tag);
+    if (text != null) e.textContent = text;
+    if (cls) e.className = cls;
+    return e;
+  }
+  function fmtTime(s) {
+    var m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(String(s || ''));
+    return m ? m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ':' + m[6] : String(s || '');
+  }
+
+  function load(file) {
+    $('msg').textContent = '';
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var wb = XLSX.read(reader.result, { type: 'array' });
+        var ws = wb.Sheets[wb.SheetNames[0]];
+        var data = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+        if (data.length < 2 || data[0].length <= META) throw new Error('형식이 맞지 않습니다');
+        items = data[0].slice(META).map(function (h) { return String(h).trim(); });
+        rows = []; clean = 0;
+        data.slice(1).forEach(function (r) {
+          if (!r[0]) return;
+          var errs = [];
+          items.forEach(function (it, i) { if (String(r[META + i]).trim() === '1') errs.push(it); });
+          if (!errs.length) { clean++; return; }
+          rows.push({ id: String(r[0]).trim(), station: String(r[1]), center: String(r[2]) || '미분류',
+                      time: fmtTime(r[3]), errs: errs });
+        });
+        render();
+      } catch (e) {
+        $('result').hidden = true;
+        $('msg').textContent = '읽을 수 없는 파일입니다: ' + e.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function uniq(a) { return a.filter(function (v, i) { return a.indexOf(v) === i; }).sort(); }
+
+  function fillSelect(sel, label, values) {
+    sel.textContent = '';
+    var o = el('option', label); o.value = ''; sel.appendChild(o);
+    values.forEach(function (v) { var x = el('option', v); x.value = v; sel.appendChild(x); });
+  }
+
+  function render() {
+    $('result').hidden = false;
+    var centers = uniq(rows.map(function (r) { return r.center; }));
+    var st = $('stats'); st.textContent = '';
+    [['전체 일지', rows.length + clean + '건'], ['수정 필요', rows.length + '건'],
+     ['오류 없음', clean + '건'], ['출동센터', centers.length + '곳']].forEach(function (p) {
+      var d = el('div', null, 'stat'); d.appendChild(el('b', p[1])); d.appendChild(el('span', p[0])); st.appendChild(d);
+    });
+    fillSelect($('fCenter'), '전체 센터', centers);
+    fillSelect($('fItem'), '전체 항목', uniq(rows.reduce(function (a, r) { return a.concat(r.errs); }, [])));
+
+    var cnt = {};
+    rows.forEach(function (r) { r.errs.forEach(function (e) { cnt[e] = (cnt[e] || 0) + 1; }); });
+    var tb = $('sum').tBodies[0]; tb.textContent = '';
+    Object.keys(cnt).sort().forEach(function (k) {
+      var tr = tb.insertRow(); tr.insertCell().textContent = k; tr.insertCell().textContent = cnt[k];
+    });
+    renderList();
+  }
+
+  function filtered() {
+    var c = $('fCenter').value, it = $('fItem').value, t = $('fText').value.trim();
+    return rows.filter(function (r) {
+      return (!c || r.center === c) && (!it || r.errs.indexOf(it) >= 0) && (!t || r.id.indexOf(t) >= 0);
+    });
+  }
+
+  function chips(parent, errs) {
+    errs.forEach(function (e) { parent.appendChild(el('span', e, 'chip')); });
+  }
+
+  function renderList() {
+    var list = filtered(), tb = $('list').tBodies[0]; tb.textContent = '';
+    list.forEach(function (r) {
+      var tr = tb.insertRow();
+      tr.insertCell().textContent = r.id; tr.insertCell().textContent = r.station;
+      tr.insertCell().textContent = r.center; tr.insertCell().textContent = r.time;
+      chips(tr.insertCell(), r.errs);
+    });
+    $('count').textContent = list.length + '건 표시';
+  }
+
+  function saveXlsx() {
+    var head = ['보고서번호', '소방서', '출동센터', '신고일시', '오류 수', '수정 필요 항목'];
+    var toRow = function (r) { return [r.id, r.station, r.center, r.time, r.errs.length, r.errs.join(', ')]; };
+    var wb = XLSX.utils.book_new();
+    var add = function (name, aoa, w) {
+      var ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = w.map(function (x) { return { wch: x }; });
+      XLSX.utils.book_append_sheet(wb, ws, name.slice(0, 31));
+    };
+    var w = [24, 14, 18, 20, 8, 40];
+    add('건별목록', [head].concat(rows.map(toRow)), w);
+    var cnt = {};
+    rows.forEach(function (r) { r.errs.forEach(function (e) { cnt[e] = (cnt[e] || 0) + 1; }); });
+    add('항목별집계', [['항목', '오류 건수']].concat(Object.keys(cnt).sort().map(function (k) { return [k, cnt[k]]; })), [30, 12]);
+    uniq(rows.map(function (r) { return r.center; })).forEach(function (c) {
+      add(c, [head].concat(rows.filter(function (r) { return r.center === c; }).map(toRow)), w);
+    });
+    var buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    var url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = 'ilji_fix_list.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function printByCenter() {
+    var box = $('print'); box.textContent = '';
+    uniq(rows.map(function (r) { return r.center; })).forEach(function (c) {
+      var rs = rows.filter(function (r) { return r.center === c; });
+      var sec = el('section');
+      sec.appendChild(el('h2', '구급일지 수정 요청서 - ' + c));
+      sec.appendChild(el('div', '수정 필요 일지 ' + rs.length + '건. 표시된 항목을 확인해 수정해 주세요.'));
+      var t = el('table'), h = t.createTHead().insertRow();
+      ['보고서번호', '신고일시', '수정 필요 항목'].forEach(function (x) { h.appendChild(el('th', x)); });
+      var b = t.createTBody();
+      rs.forEach(function (r) {
+        var tr = b.insertRow(); tr.insertCell().textContent = r.id; tr.insertCell().textContent = r.time;
+        chips(tr.insertCell(), r.errs);
+      });
+      sec.appendChild(t); box.appendChild(sec);
+    });
+    window.print();
+  }
+
+  var drop = $('drop');
+  $('file').addEventListener('change', function (e) { if (e.target.files[0]) load(e.target.files[0]); });
+  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault(); drop.classList.remove('over');
+    if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]);
+  });
+  ['fCenter', 'fItem'].forEach(function (id) { $(id).addEventListener('change', renderList); });
+  $('fText').addEventListener('input', renderList);
+  $('btnXlsx').addEventListener('click', saveXlsx);
+  $('btnPrint').addEventListener('click', printByCenter);
+})();
+</script>
+</body>
+</html>

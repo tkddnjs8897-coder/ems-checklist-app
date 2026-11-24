@@ -21,3 +21,11 @@ python make_dummy.py dummy                                  # 시험용 가짜 �
 ```
 {"18.환자직업": {"x0": 60, "top": 300, "x1": 400, "bottom": 325}}
 ```
+
+## HTML 버전 (설치 불필요)
+`ilji-precheck.html` 한 파일을 브라우저로 열고 오류 엑셀을 끌어다 놓으면 된다.
+- 건별 목록 · 센터/항목/보고서번호 필터 · 항목별 집계
+- `엑셀로 저장`(ilji_fix_list.xlsx), `센터별 수정요청서 인쇄/PDF`(브라우저 인쇄 → PDF로 저장)
+- 외부 통신 차단(CSP). 엑셀 읽기 라이브러리(SheetJS 0.18.5, Apache-2.0)를 파일 안에 포함
+- 원본 일지 PDF에 박스 표시는 파이썬 버전(`precheck.py --pdf`)에서만 지원
+- 다시 만들기: `python build_html.py <xlsx.mini.min.js 경로>` (템플릿은 `ilji-precheck.template.html`)
