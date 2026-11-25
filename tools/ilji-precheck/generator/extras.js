@@ -619,12 +619,114 @@
     await p2Convert();
   }
 
+  /* ---------- 일지 점검 (PDF → 0/1 엑셀) ----------
+     구급빨간펜의 기준을 일지 값(readValues)에 적용한다. 공식 완결성 점검 기준이 아니라 빨간펜 기준이다. */
+  const LOG_RULES = [
+    ['필수 칸 비어 있음', '구급빨간펜 oz2025.REQ 와 같은 기준으로 항목이 비어 있으면 1. 29.의료지도는 선택, 18.환자직업은 2025 서식에서 삭제돼 점검하지 않음. 미이송으로 판단되면 현장출발·병원도착·환자분류·이송기관은 제외'],
+    ['L-05 시각 순서', '신고 → 출동 → 현장도착 → 환자접촉 → 현장출발 → 병원도착 순서에서 뒤 시각이 앞보다 빠르면 뒤 항목을 1 (자정 넘김은 같은 날로 보지 않음)'],
+    ['L-06 활력징후 범위', '맥박 20~250, 호흡 4~60, 체온 30~43, SpO2 50~100 밖이면 25.활력징후를 1'],
+    ['L-07 혈압', '수축기 40~300, 이완기 20~200, 이완기가 수축기 이상이면 25.활력징후를 1 (0/0 제외)'],
+    ['L-04 주호소', '주호소가 비어 있으면 27.평가소견을 1. 혈압이 1·2회 모두 비어 있으면(측정불가·거부 체크가 없을 때) 25.활력징후를 1'],
+    ['L-10 측정 시각', '의식상태·활력징후 측정 시각이 환자접촉보다 앞서거나 병원도착보다 늦으면 23.의식상태 / 25.활력징후를 1'],
+    ['L-11 의식상태 체크', '의식상태 1차·2차에 두 개 이상 체크했거나, 2차 시각은 있는데 체크가 없으면 23.의식상태를 1'],
+  ];
+  function checkLog(v) {
+    const flags = new Set(), why = [], g = (k) => String(v[k] == null ? '' : v[k]).trim();
+    const add = (item, rule, text) => { flags.add(item); why.push([item, rule, text]); };
+    const tok = (val, ign) => val.split(' ').filter((t) => t && ign.indexOf(t) < 0).some((t) => /[0-9A-Za-z가-힣]/.test(t));
+    const tm = (x) => { const m = /(\d{1,2}):(\d{2})/.exec(x || ''); return m ? +m[1] * 60 + +m[2] : null; };
+    // 이송 / 미이송 판단 (구급빨간펜 teamDecide 와 같은 순서)
+    const has = (k, re) => new RegExp(re).test(g(k));
+    const transport = g('30.이송기관명(1차)') ? true : g('미이송') ? false : has('22.질병외 세부', '자연재해|단순주취') ? false : !!g('22.환자발생유형');
+    const need = (item, ok, what) => { if (!ok) add(item, '필수 칸 비어 있음', what + ' 칸이 비어 있습니다'); };
+    need('1.소속', !!g('1.소속'), '소속');
+    need('2.차량번호', /\d/.test(g('2.차량번호')), '차량번호');
+    need('3.구급구분', !!g('3.구급구분'), '구급구분');
+    need('4.신고일시', tm(g('4.신고일시')) != null, '신고일시');
+    need('5.출동일시', tm(g('5.출동일시')) != null, '출동일시');
+    need('6.현장도착일시', tm(g('6.현장도착일시')) != null, '현장도착일시');
+    need('7.환자접촉일시', tm(g('7.환자접촉일시')) != null, '환자접촉일시');
+    need('8.현장과의거리', /\d/.test(g('8.현장과의거리')), '현장과의 거리');
+    if (transport) { need('9.현장출발일시', tm(g('9.현장출발일시')) != null, '현장출발일시'); need('10.병원도착일시', tm(g('10.병원도착일시')) != null, '병원도착일시'); }
+    need('11.귀소일시', tm(g('11.귀소일시')) != null, '귀소일시');
+    need('12.신고자번호', /\d/.test(g('12.신고자번호')), '신고자 전화번호');
+    need('13.신고방법', !!g('13.신고방법'), '신고방법');
+    need('14.환자성명', !!g('14.환자성명'), '환자 성명');
+    need('15.환자나이', /\d/.test(g('15.환자나이')), '환자 나이');
+    need('16.환자성별', !!g('16.환자성별'), '환자 성별');
+    need('17.환자주소', tok(g('17.환자주소'), ['(Tel', ':', ')', '(Tel:)', '동', '호']), '환자 주소');
+    need('19.환자발생 위치', tok(g('19.환자발생 위치'), ['동', '호']), '환자발생 위치');
+    need('20.환자발생 장소', !!g('20.환자발생 장소'), '환자발생 장소');
+    need('21.환자증상', !!g('21.환자증상'), '환자증상');
+    need('22.환자발생유형', !!g('22.환자발생유형'), '환자발생유형');
+    need('23.의식상태(1차)', !!g('23.의식상태(1차)'), '의식상태');
+    ['24.1.동공상태_좌(1차)', '24.2.동공상태_우(1차)', '24.3.동공반응_좌(1차)', '24.4.동공반응_우(1차)'].forEach((k) => need(k, !!g(k), k.replace(/^\d+\.\d+\./, '').replace('(1차)', '')));
+    need('25.활력징후', /\d/.test(g('25.활력징후(1회)') + g('25.활력징후(2회)')), '활력징후');
+    if (transport) need('26.환자분류', !!g('26.환자분류'), '환자분류');
+    need('27.평가소견', !!g('27.평가소견'), '구급대원 평가소견');
+    if (!g('27.주호소')) add('27.평가소견', 'L-04 주호소', '주호소가 비어 있습니다');
+    need('28.응급처치', !!g('28.응급처치'), '응급처치');
+    if (transport) need('30.환자이송', !!g('30.이송기관명(1차)'), '이송기관명');
+    need('31.이송자', ['31.구급대원(1) 자격', '31.구급대원(2) 자격', '31.운전요원 자격', '31.기타 자격'].some((k) => !!g(k)), '출동인원 자격');
+    need('32.장애요인', !!g('32.장애요인'), '장애요인');
+    // L-05 시각 순서
+    const seq = [['4.신고일시', '신고'], ['5.출동일시', '출동'], ['6.현장도착일시', '현장도착'], ['7.환자접촉일시', '환자접촉'], ['9.현장출발일시', '현장출발'], ['10.병원도착일시', '병원도착']];
+    let prev = null;
+    seq.forEach(([k, nm]) => {
+      const t = tm(g(k)); if (t == null) return;
+      if (prev && t < prev[0]) add(k, 'L-05 시각 순서', nm + ' ' + g(k).replace(/^.* /, '') + '이(가) ' + prev[1] + ' ' + prev[2] + '보다 빠릅니다');
+      prev = [t, nm, g(k).replace(/^.* /, '')];
+    });
+    // L-10 측정 시각 (환자접촉 ~ 병원도착 사이여야 함)
+    const tc = tm(g('7.환자접촉일시')), th = tm(g('10.병원도착일시')), within = (item, label, t) => {
+      if (t == null) return;
+      if (tc != null && t < tc) add(item, 'L-10 측정 시각', label + ' 측정 시각이 환자접촉보다 앞섭니다');
+      else if (th != null && t > th) add(item, 'L-10 측정 시각', label + ' 측정 시각이 병원도착보다 늦습니다');
+    };
+    within('23.의식상태(1차)', '의식상태 1차', tm(g('23.의식상태(1차) 시각')));
+    within('23.의식상태(1차)', '의식상태 2차', tm(g('23.의식상태(2차) 시각')));
+    within('25.활력징후', '활력징후 1회', tm(g('25.활력징후(1회)').split('|')[0]));
+    within('25.활력징후', '활력징후 2회', tm(g('25.활력징후(2회)').split('|')[0]));
+    // L-11 의식상태 체크
+    [['23.의식상태(1차)', '1차'], ['23.의식상태(2차)', '2차']].forEach(([k, nm]) => { if (g(k).split(',').filter((x) => x.trim()).length >= 2) add('23.의식상태(1차)', 'L-11 의식상태 체크', '의식상태 ' + nm + '에 두 개 이상 체크했습니다'); });
+    if (tm(g('23.의식상태(2차) 시각')) != null && !g('23.의식상태(2차)')) add('23.의식상태(1차)', 'L-11 의식상태 체크', '의식상태 2차 시각은 있는데 A·V·P·U 체크가 없습니다');
+    // L-04b 혈압이 모두 비어 있음
+    if (!g('25.활력징후 측정불가/거부') && !/\d+\s*\/\s*\d+/.test(g('25.활력징후(1회)').split('|')[1] || '') && !/\d+\s*\/\s*\d+/.test(g('25.활력징후(2회)').split('|')[1] || '') && /\d/.test(g('25.활력징후(1회)') + g('25.활력징후(2회)'))) add('25.활력징후', 'L-04 주호소', '혈압이 1·2회차 모두 비어 있습니다(측정 불가·거부면 그 칸 체크)');
+    // L-06, L-07 활력징후
+    [['25.활력징후(1회)', '1회'], ['25.활력징후(2회)', '2회']].forEach(([k, nm]) => {
+      const p = g(k).split('|').map((x) => x.trim()), num = (x) => { const m = /(\d+(?:\.\d+)?)/.exec(x || ''); return m ? +m[1] : null; };
+      const chk = (label, val, lo, hi) => { if (val != null && (val < lo || val > hi)) add('25.활력징후', 'L-06 활력징후 범위', nm + ' ' + label + ' ' + val + '이(가) 입력 범위(' + lo + '~' + hi + ')를 벗어남'); };
+      chk('맥박', num(p[2]), 20, 250); chk('호흡', num(p[3]), 4, 60); chk('체온', num(p[4]), 30, 43); chk('SpO2', num(p[5]), 50, 100);
+      const bp = /(\d+)\s*\/\s*(\d+)/.exec(p[1] || '');
+      if (bp && !(+bp[1] === 0 && +bp[2] === 0)) {
+        const sy = +bp[1], di = +bp[2];
+        if (sy < 40 || sy > 300 || di < 20 || di > 200 || di >= sy) add('25.활력징후', 'L-07 혈압', nm + ' 혈압 ' + sy + '/' + di + '이(가) 형식·범위에 맞지 않습니다');
+      }
+    });
+    return { flags, why, transport };
+  }
+  // rows: [{meta, values}] (일지만) → 0/1 엑셀 (시트 오류위치 · 점검사유 · 점검기준)
+  function checkWorkbook(rows) {
+    const wb = XLSX.utils.book_new(), cols = META.concat(ITEMS), res = rows.map((r) => checkLog(r.values));
+    const aoa = [cols].concat(rows.map((r, i) => [r.meta.id, r.meta.station, r.meta.center, r.meta.time].concat(ITEMS.map((it) => (res[i].flags.has(it) ? '1' : '0')))));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = colWidths(cols);
+    XLSX.utils.book_append_sheet(wb, ws, FORMS.log.errSheet);
+    const why = [['보고서번호', '항목', '기준', '내용']];
+    rows.forEach((r, i) => res[i].why.forEach((w) => why.push([r.meta.id, w[0], w[1], w[2]])));
+    const wsw = XLSX.utils.aoa_to_sheet(why); wsw['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 70 }];
+    XLSX.utils.book_append_sheet(wb, wsw, '점검사유');
+    const rules = [['점검 기준', '설명']].concat(LOG_RULES, [['한계', '구급일지(이송·미이송) 한 종류만 점검합니다. 세부상황표는 점검하지 않습니다. 구급빨간펜의 기준이며 구급정보시스템 공식 완결성 점검 기준과 같지 않을 수 있습니다. 이 엑셀을 ②에 올리면 1인 칸이 빨갛게 표시된 PDF가 됩니다']]);
+    const wsr = XLSX.utils.aoa_to_sheet(rules); wsr['!cols'] = [{ wch: 22 }, { wch: 120 }];
+    XLSX.utils.book_append_sheet(wb, wsr, '점검기준');
+    return { wb, res };
+  }
+
   /* ---------- ③ PDF → 엑셀 ---------- */
   const P3 = panel('p3');
   function p3Reset() { P3.clear(); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
   async function p3Handle(files) {
     if (P3.busy || !files.length) return;
-    p3Reset();
+    p3Reset(); P3.res2 = null;
     const pdfs = files.filter((f) => /\.pdf$/i.test(f.name));
     if (!pdfs.length) { P3.err('PDF 파일을 놓아 주세요. 엑셀은 가운데 ② 부분에 놓습니다'); return; }
     P3.busy = true;
@@ -654,7 +756,14 @@
       const blob = new Blob([xlsxBytes(workbookFromRows(rowsBy, bad))], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       P3.q('kind').textContent = '구급일지 PDF로 인식했어요';
       P3.q('info').textContent = '일지 ' + rowsBy.log.length + ' · 심뇌혈관 ' + rowsBy.cv.length + ' · 중증외상 ' + rowsBy.trauma.length + (bad.length ? ' · 읽지 못한 쪽 ' + bad.length : '');
-      P3.done(read + '쪽을 엑셀로 옮겼어요 · ' + mb(blob.size), bad.length ? '읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적었어요' : '시트: 일지값 · 심뇌혈관 · 중증외상', { name: 'ilji_values_from_pdf.xlsx', blob });
+      let sub = bad.length ? '읽지 못한 쪽은 엑셀의 [읽지못한쪽] 시트에 적었어요' : '값 엑셀 시트: 일지값 · 심뇌혈관 · 중증외상';
+      if (rowsBy.log.length) {
+        const ck = checkWorkbook(rowsBy.log), bad1 = ck.res.filter((x) => x.flags.size).length;
+        P3.res2 = { name: 'ilji_errors_from_pdf.xlsx', blob: new Blob([xlsxBytes(ck.wb)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }) };
+        sub += ' · 일지 점검: 고칠 곳 있는 일지 ' + bad1 + '건 / 이상 없음 ' + (rowsBy.log.length - bad1) + '건';
+      }
+      P3.q('save2').hidden = !P3.res2;
+      P3.done(read + '쪽을 엑셀로 옮겼어요 · ' + mb(blob.size), sub, { name: 'ilji_values_from_pdf.xlsx', blob });
     } catch (e) { console.error(e); P3.err(e.message || String(e)); P3.q('card').hidden = true; P3.q('drop').hidden = false; P3.q('samples').hidden = false; }
     P3.endProg(); P3.busy = false;
   }
@@ -711,6 +820,7 @@
   wireDrop('p3', p3Handle, true);
   $('#p2-again').addEventListener('click', p2Reset);
   $('#p3-again').addEventListener('click', p3Reset);
+  $('#p3-save2').addEventListener('click', () => { if (P3.res2) saveBlob(P3.res2.name, P3.res2.blob); });
   $('#p2-exc').addEventListener('change', p2Convert);
   document.querySelectorAll('input[name=p2-out]').forEach((r) => r.addEventListener('change', p2Convert));
   $('#p1-pdf').addEventListener('click', () => p1Make('pdf'));
@@ -721,5 +831,5 @@
   if (orig && tog) tog.addEventListener('click', () => { orig.hidden = !orig.hidden; tog.textContent = orig.hidden ? '원래 생성기 화면(문서별 미리보기·정답표) 열기' : '원래 생성기 화면 닫기'; });
 
   // 시험·확인용
-  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, workbookFromRows, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, identify, pageContent, p1Make, p2Handle, p3Handle };
+  window.__xl = { FORMS, FORM_KEYS, genSet, genMany, valuesWorkbook, errorWorkbook, workbookFromRows, readBook, detect, valuePages, errorPages, buildPdf, openStream, readValues, readMeta, identify, pageContent, checkLog, checkWorkbook, p1Make, p2Handle, p3Handle };
 })();
