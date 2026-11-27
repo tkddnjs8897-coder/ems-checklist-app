@@ -91,9 +91,9 @@
         let k = 0; while (k < val.length && S.width(val.slice(0, k + 1), R[0].size) <= 62) k++;
         S.set(R[0], val.slice(0, k) || ' '); R.slice(1).forEach((r, i) => S.set(r, i === 0 ? (val.slice(k) || ' ') : ' ')); break;
       }
-      case 'paren': S.set(R[0], /^km$/i.test(val) ? '(   km)' : '(' + (val || '     ') + ')'); break;
+      case 'paren': S.set(R[0], /^km$/i.test(val) ? '(   km)' : val === ':' ? '( : )' : '(' + (val || '     ') + ')'); break;
       case 'prefix': S.set(R[0], arg + ' ' + val); break;
-      case 'onset': { const m = /^(추정)?\s*(.*)$/.exec(val); S.set(R[0], 'ㆍ발생시간([' + (m[1] ? '√' : ' ') + ']추정): ' + m[2]); break; }
+      case 'onset': { const m = /^(추정)?\s*(.*)$/.exec(val); S.set(R[0], !m[1] && !m[2] ? 'ㆍ발생시간(' : 'ㆍ발생시간([' + (m[1] ? '√' : ' ') + ']추정): ' + m[2]); break; } // 발생시각이 없으면 실제 출력본은 'ㆍ발생시간(' 까지만 찍는다
       case 'lpm': S.set(R[0], R[0].text.replace(/\d+(?:\.\d+)?L\/min/, (val || '0') + 'L/min')); break;
       case 'chunks': {
         const ch = Array.from(val), n = R.length, parts = [];
@@ -117,8 +117,19 @@
     const at = i + label.length + m.index;
     S.set(S.runs[ri], t.slice(0, at) + '(' + txt + ')' + t.slice(at + m[0].length)); return true;
   }
-  function moveX(run, x) { // 글자 덩어리의 가로 위치를 바꾼다
-    run.head = run.head.replace(/([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) Tm/, (m, a, b, c, d, e, f) => a + ' ' + b + ' ' + c + ' ' + d + ' ' + x + ' ' + f + ' Tm');
+  function moveX(run, x, topY) { // 글자 덩어리의 가로(와 세로) 위치를 바꾼다. topY 는 쪽 위에서부터의 거리
+    run.head = run.head.replace(/([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+) Tm/, (m, a, b, c, d, e, f) => a + ' ' + b + ' ' + c + ' ' + d + ' ' + x + ' ' + (topY == null ? f : (842 - topY).toFixed(2)) + ' Tm');
+  }
+  // 서식 예시 글자를 기준으로 가운데·오른쪽 정렬 (실제 출력본이 칸 안에서 값을 이렇게 정렬한다)
+  function place(S, i, mode, topY) {
+    const r = S.runs[i], o = S.orig[i], w = S.width(r.text, r.size);
+    moveX(r, (mode === 'right' ? o.x + o.w - w : o.x + o.w / 2 - w / 2).toFixed(2), topY);
+  }
+  // 글자 단위 줄바꿈: 공백을 그대로 두고 폭이 차면 끊는다 (실제 출력본의 평가소견 방식)
+  function charWrap(S, text, size, lim) {
+    const out = [];
+    String(text).split(/\r?\n/).forEach((para) => { let cur = ''; for (const ch of Array.from(para)) { if (cur && S.width(cur + ch, size) > lim) { out.push(cur); cur = ch; } else cur += ch; } out.push(cur); });
+    return out;
   }
 
   /* ================= 서식 불러오기 ================= */
@@ -128,7 +139,9 @@
   async function loadTemplate() {
     if (!tplBytes) tplBytes = await gunzipU8(b64ToU8(TPL_B64));
     const doc = await PDFLib.PDFDocument.load(tplBytes), page = doc.getPage(0), cs = page.node.Contents();
-    return { doc, page, stream: new Stream(cs.getContents ? cs.getContents() : cs.contents, page.getHeight()) };
+    const stream = new Stream(cs.getContents ? cs.getContents() : cs.contents, page.getHeight());
+    stream.orig = stream.runs.map((r) => ({ x: r.x, w: stream.width(r.text, r.size) })); // 서식 예시 글자의 위치·폭(정렬 기준)
+    return { doc, page, stream };
   }
 
   /* ================= 스마트 엑셀 한 줄 → 일지 값 ================= */
@@ -151,18 +164,20 @@
     checks['3.구급구분'] = [g('구급활동구분')];
     text['4.신고일시'] = g('신고년월일') && g('신고시각') ? g('신고년월일') + ' ' + hm(g('신고시각')) : '';
     checks['13.신고방법'] = [g('접수경로')];
-    text['5.출동일시'] = hm(g('출동시각')); text['6.현장도착일시'] = hm(g('현장도착시각')); text['7.환자접촉일시'] = hm(g('환자접촉시각'));
+    const tm = (k) => hm(g(k)) || ':'; // 비어 있으면 실제 출력본처럼 ':'
+    text['5.출동일시'] = tm('출동시각'); text['6.현장도착일시'] = tm('현장도착시각'); text['7.환자접촉일시'] = tm('환자접촉시각');
     text['8.현장과의거리'] = g('현장과의거리') ? g('현장과의거리') + 'km' : '';
-    text['9.현장출발일시'] = hm(g('현장출발시각')); text['10.병원도착일시'] = hm(g('병원도착시각')); text['11.귀소일시'] = hm(g('귀소시각'));
-    text['14.환자성명'] = nm('환자명'); text['15.환자나이'] = g('환자연령') ? g('환자연령') + '세' : '';
+    text['9.현장출발일시'] = tm('현장출발시각'); text['10.병원도착일시'] = tm('병원도착시각'); text['11.귀소일시'] = tm('귀소시각');
+    const hasPt = !!g('환자명');
+    text['14.환자성명'] = nm('환자명') || '-'; text['15.환자나이'] = (g('환자연령') || '') + '세';
     checks['16.환자성별'] = [g('환자성별')];
     text['환자생년월일'] = opts.mask && g('환자주민등록번호') ? g('환자주민등록번호').slice(0, 4) + '****' : g('환자주민등록번호');
-    const addr = (k) => ['시', '구', '동', '리', '번지', '상세주소'].map((x) => g(k + x)).join(' ').replace(/\s*,\s*,?/g, ' ').replace(/\s+/g, ' ').trim();
-    const pa = ['시', '구', '동', '리'].map((x) => g('환자' + x)).join(' ') + (opts.mask ? '' : ' ' + g('환자번지') + ' ' + g('환자상세주소').replace(/^[,\s]+|[,\s]+$/g, ''));
-    text['17.주소'] = ''; text['17.환자주소'] = '(Tel : ) ' + clean(pa).replace(/\s*,\s*$/, '');
+    // 주소: '시 구 동 리 번지번지 상세' 순서이고 상세주소 글자는 엑셀에 있는 그대로 쓴다 (실제 출력본 모양)
+    const addr = (k) => ['시', '구', '동', '리'].map((x) => g(k + x)).filter(Boolean).join(' ') + (g(k + '번지') ? ' ' + g(k + '번지') + '번지' : '') + (g(k + '상세주소') ? ' ' + g(k + '상세주소') : '');
+    const adrShort = (k) => ['시', '구', '동', '리'].map((x) => g(k + x)).filter(Boolean).join(' ');
+    text['17.환자주소'] = '(Tel : ) ' + (g('환자시') ? (opts.mask ? adrShort('환자') : addr('환자')) : '');
     checks['17.외국인'] = g('외국인유무') === 'Y' ? ['외국인'] : [];
-    text['19.환자발생 위치'] = addr('긴급구조');
-    if (opts.mask) text['19.환자발생 위치'] = ['시', '구', '동', '리'].map((x) => g('긴급구조' + x)).join(' ').replace(/\s+/g, ' ').trim();
+    text['19.환자발생 위치'] = opts.mask ? adrShort('긴급구조') : addr('긴급구조');
     // 발생장소: '상업시설(티롤호텔)' 처럼 괄호가 붙은 값은 선택지 + 괄호 안 글자로 나눈다
     const pl = /^([^(]+)(?:\(([^)]*)\))?$/.exec(g('발생장소'));
     if (pl) { checks['20.환자발생 장소'] = [pl[1]]; if (pl[2]) paren.push({ ri: 58, label: pl[1].trim() === '기타' ? '기타' : pl[1], txt: pl[2] }); }
@@ -174,7 +189,7 @@
       else paren.push({ ri: 78, label: '기타', txt: g('구급환자증상기타내역') });
     }
     checks['출동유형'] = [g('긴급구조종결구분')];
-    checks['22.환자발생유형'] = [g('환자발생유형')];
+    checks['22.환자발생유형'] = hasPt ? [g('환자발생유형')] : []; // 환자가 없으면 유형을 체크하지 않는다(실제 출력본)
     // 병력
     const hx = [];
     if (g('병력없음') === '예') hx.push('없음'); else if (g('병력없음') === '미상') hx.push('미상');
@@ -196,17 +211,20 @@
     checks['22.질병외 세부'] = ox;
     // 의식·동공
     const av = (k) => (g(k) ? g(k).charAt(0) : '');
-    checks['23.의식상태(1차)'] = [av('1차진단 의식상태')]; text['23.의식상태(1차) 시각'] = hm(g('1차진단 시간'));
-    checks['23.의식상태(2차)'] = [av('2차진단 의식상태')]; text['23.의식상태(2차) 시각'] = hm(g('2차진단 시간'));
+    checks['23.의식상태(1차)'] = [av('1차진단 의식상태')]; text['23.의식상태(1차) 시각'] = hm(g('1차진단 시간')) || ':';
+    checks['23.의식상태(2차)'] = [av('2차진단 의식상태')]; text['23.의식상태(2차) 시각'] = hm(g('2차진단 시간')) || ':';
     checks['24.1.동공상태_좌(1차)'] = [g('동공상태_좌')]; checks['24.2.동공상태_우(1차)'] = [g('동공상태_우')];
     checks['24.3.동공반응_좌(1차)'] = [g('동공반응_좌')]; checks['24.4.동공반응_우(1차)'] = [g('동공반응_우')];
     checks['25.활력징후 측정불가/거부'] = g('활력징후') === '거부' ? ['거부'] : g('활력징후') === '불가' ? ['불가'] : [];
+    // 활력징후: 값이 없어도 단위는 찍힌다(실제 출력본). 혈압은 비면 비워 둔다
     const vit = (n) => {
       const bp = g('최고혈압' + n) || g('최저혈압' + n) ? (g('최고혈압' + n) + '/' + g('최저혈압' + n) + 'mmHg') : '';
-      return [g('측정시간' + n), bp, g('맥박수' + n) ? g('맥박수' + n) + '회/min' : '', g('호흡수' + n) ? g('호흡수' + n) + '회/min' : '', g('체온' + n) ? g('체온' + n) + '℃' : '', g('SpO2_' + n) ? g('SpO2_' + n) + '%' : ''].join(' | ');
+      return [g('측정시간' + n) || ':', bp, (g('맥박수' + n) || '') + '회/min', (g('호흡수' + n) || '') + '회/min', (g('체온' + n) || '') + '℃', (g('SpO2_' + n) || '') + '%'].join(' | ');
     };
     text['25.활력징후(1회)'] = vit('1'); text['25.활력징후(2회)'] = vit('2');
-    checks['26.환자분류'] = g('환자분류') ? ['LEVEL ' + g('환자분류')] : [];
+    // 환자분류: 엑셀의 환자분류 칸이 비어 있어도 실제 출력본은 KTAS 최종값의 끝자리(1~5)를 LEVEL로 쓴다
+    const kt = /([1-5])$/.exec(g('KTAS최종값'));
+    checks['26.환자분류'] = g('환자분류') ? ['LEVEL ' + g('환자분류')] : kt ? ['LEVEL ' + kt[1]] : [];
     // 평가소견
     text['27.주호소'] = g('평가소견주호소');
     text['27.발생시간'] = (g('평가소견추정여부') === 'Y' ? '추정 ' : '') + dt12(g('평가소견발생시각'));
@@ -220,7 +238,7 @@
     if (['성문외기도유지기_후두마스크', '성문외기도유지기_KingAirway', '성문외기도유지기_Combitube', '성문외기도유지기_I-gel', '성문외기도유지기_기타'].some(yes)) ep.push('성문외 기도유지기');
     if (yes('약물투여 여부') || ['약물투여(NTG)', '약물투여(기관지확장제)', '약물투여(아미오다론)', '약물투여(트라마돌)', '약물투여(항히스타민)', '약물투여(에피네프린)'].some(yes) || g('약물투여-기타') === '예') ep.push('약물투여');
     if (yes('보온-온')) ep.push('보온', '온'); if (yes('보온-냉')) ep.push('보온', '냉');
-    if (yes('기타')) { ep.push('기타#2'); if (g('기타사항')) paren.push({ ri: 156, label: '기타', txt: g('기타사항') }); }
+    if (yes('기타')) { ep.push('기타#2'); if (g('기타사항')) paren.push({ ri: 156, label: '기타', txt: g('기타사항') + ' ' }); }
     checks['28.응급처치'] = ep;
     text['28.산소투여 유량(L/min)'] = g('산소투여');
     // 의료지도
@@ -232,17 +250,17 @@
     if (['성문외기도유지기_후두마스크', '성문외기도유지기_kingAirway', '성문외기도유지기_I-gel', '성문외기도유지기_기타'].some((k) => g(k) === '예')) mg.push('성문외 기도유지기');
     const rj = g('이송거절/거부').split('/'); if (rj[0] === '예') mg.push('이송거절'); if (rj[1] === '예') mg.push('이송거부');
     checks['29.의료지도'] = mg;
-    text['29.의료지도 의사성명'] = opts.mask ? maskName(g('의료지도의사')) : g('의료지도의사');
+    text['29.의료지도 의사성명'] = (opts.mask ? maskName(g('의료지도의사')) : g('의료지도의사')) || '-';
     // 이송
     text['30.이송기관명(1차)'] = g('병원명1');
     checks['30.관할(1차)'] = g('병원관할1') === '관할' ? ['관할'] : []; checks['30.타시도(1차)'] = g('병원관할1') === '타시도' ? ['타 시ㆍ'] : [];
-    text['30.도착시간(1차)'] = hm12(g('도착시간1')); text['30.거리(1차)'] = g('현장과의거리1') ? g('현장과의거리1') + 'km' : '';
+    text['30.도착시간(1차)'] = hm12(g('도착시간1')) || '-'; text['30.거리(1차)'] = (g('현장과의거리1') || '') + 'km';
     checks['30.선정자(1차)'] = [g('이송기관선정자1')]; checks['30.인수자(1차)'] = [g('환자인수자1')];
-    text['30.인수자성명(1차)'] = nm('환자인수자명');
+    text['30.인수자성명(1차)'] = nm('환자인수자명') || '-';
     checks['30.재이송사유(1차)'] = [g('재이송사유1')];
-    text['30.이송기관명(2차)'] = g('병원명2'); checks['30.관할(2차)'] = g('병원관할2') === '관할' ? ['관할'] : []; checks['30.타시도(2차)'] = g('병원관할2') === '타시도' ? ['타 시ㆍ'] : [];
-    text['30.도착시간(2차)'] = hm12(g('도착시간2')); text['30.거리(2차)'] = g('현장과의거리2') ? g('현장과의거리2') + 'km' : '';
-    checks['30.선정자(2차)'] = [g('이송기관선정자2')]; checks['30.재이송사유(2차)'] = [g('재이송사유2')]; checks['30.인수자(2차)'] = [g('환자인수자2')]; text['30.인수자성명(2차)'] = nm('환자인수자명2');
+    text['30.이송기관명(2차)'] = g('병원명2') || '-'; checks['30.관할(2차)'] = g('병원관할2') === '관할' ? ['관할'] : []; checks['30.타시도(2차)'] = g('병원관할2') === '타시도' ? ['타 시ㆍ'] : [];
+    text['30.도착시간(2차)'] = hm12(g('도착시간2')) || '-'; text['30.거리(2차)'] = (g('현장과의거리2') || '') + 'km';
+    checks['30.선정자(2차)'] = [g('이송기관선정자2')]; checks['30.재이송사유(2차)'] = [g('재이송사유2')]; checks['30.인수자(2차)'] = [g('환자인수자2')]; text['30.인수자성명(2차)'] = nm('환자인수자명2') || '-';
     // 공동대응 · 미이송 · 소방활동
     const co = []; [['공동대응_헬기', '헬기'], ['공동대응_펌뷸런스', '펌뷸런스'], ['공동대응_경찰', '경찰'], ['공동대응_구급차', '구급차'], ['공동대응_기타', '기타']].forEach(([c, n]) => { if (yes(c)) co.push(n); });
     if (g('이송분류') === '소방활동') co.push('옵션2-1');
@@ -265,8 +283,11 @@
     [['장거리_이송', '장거리 이송'], ['보호자요구', '보호자 요구'], ['원거리병원', '원거리 병원'], ['원거리출동', '원거리 출동'], ['만취자', '만취자'], ['폭행', '폭행'], ['언어폭력', '언어폭력'], ['환자_과체중', '환자 과체중'], ['관련기관_협조미흡', '기관협조 미흡'], ['환자위치_불명확', '환자위치 불명확'], ['교통정체', '교통정체'], ['폭우', '폭우'], ['폭설', '폭설'], ['장애요인_기타', '기타']].forEach(([c, n]) => { if (yes(c)) jx.push(n); });
     checks['32.장애요인'] = jx;
     text['재난번호'] = g('재난번호');
+    text['센터전화'] = opts.centerTel || '';
+    text['출력자'] = opts.printer || ''; text['출력일시'] = opts.printTime || '';
     // 한 줄 밖 항목
     const extra = {
+      hasPt,
       id: g('구급보고서번호'), station, center: last, centerA: A,
       time: g('신고년월일') && g('신고시각') ? g('신고년월일').replace(/-/g, '') + hm(g('신고시각')).replace(':', '') + '00' : '',
       sugar: [g('혈당체크1'), g('혈당체크2')], medTime: hm12(g('의료지도요청일시')), narrative: g('평가소견내용'), kind: g('이송분류'),
@@ -286,7 +307,6 @@
   }
 
   /* ================= 서식 한 쪽 채우기 + 이면 쪽 ================= */
-  const LIM1 = 455; // 평가소견 한 줄 너비(pt)
   function wrapText(S, text, size, lim) {
     const out = [];
     String(text).split('\n').forEach((para) => {
@@ -303,14 +323,17 @@
     });
     return out;
   }
+  const LIM1 = 475; // 평가소견 한 줄 너비(pt): 실제 출력본에서 72·74·52자로 끊기는 값
+  // 정렬 기준 (서식 예시 글자의 위치·폭 기준)
+  const CENTER = [15, 21, 26, 239, 28, 34, 39, 41, 52, 57, 60, 69, 126, 133, 127, 134, 180, 194, 195, 196, 197, 199, 211, 214, 217, 219, 231, 233, 253, 255, 260, 262, 267, 269];
+  const RIGHT = [128, 129, 130, 131, 135, 136, 137, 138, 132, 139];
   function fillRecord(S, rec, warn) {
     S.src = S.src.replace(/\/Im[1-4] Do/g, (m) => ' '.repeat(m.length)); // 가상 서명 그림 삭제
     S.runs.forEach((r) => { if (r.text.indexOf('[√]') >= 0) S.uncheck(r); });
     const x = rec.extra;
     // 평가소견: 3줄에 들어가면 그대로, 넘치면 1쪽에는 '이면참고', 전문은 다음 쪽
-    const lines = wrapText(S, x.narrative, S.runs[146].size, LIM1);
-    let more = null;
-    if (lines.length > 3) { rec.text['27.평가소견'] = '이면참고'; more = x.narrative; } else rec.text['27.평가소견'] = lines.join('\n');
+    const lines = charWrap(S, x.narrative, S.runs[146].size, LIM1);
+    const more = lines.length > 3 ? x.narrative : null;
     F.forEach((f) => {
       const name = f[0];
       if (f[1] === 'check') {
@@ -319,10 +342,30 @@
         writeField(S, f, names);
       } else writeField(S, f, rec.text[name] == null ? '' : rec.text[name]);
     });
+    // 평가소견 줄: 공백을 그대로 둔다
+    [146, 147, 148].forEach((ri, i) => S.set(S.runs[ri], (more ? (i === 0 ? '이면참고' : '') : lines[i] || '') || ' '));
+    // 서식 예시로 들어 있던 글자 정리
+    fillParen(S, 156, '기타', ' '); // CPR 줄의 '기타(안위도모 )' 예시
+    if (S.runs[82].text.indexOf('[√]') < 0) S.set(S.runs[82], '[ ]질 병'); // 체크 안 한 '질병' 은 실제 출력본이 '질 병' 으로 찍는다
     rec.paren.forEach((p) => { if (!fillParen(S, p.ri, p.label, p.txt)) warn('괄호 안에 쓸 칸이 없어 반영하지 못함: ' + p.label + '(' + p.txt + ')'); });
-    // 혈당 · 의료지도 요청시간 · 보고서번호 · 소속
-    [[132, x.sugar[0]], [139, x.sugar[1]]].forEach(([ri, v]) => { if (v) { S.set(S.runs[ri], v + ' mg/dL'); moveX(S.runs[ri], 369); } });
+    // 이송기관명: 비면 가운데에 '-', 있으면 6글자씩 가운데 정렬(실제 출력본)
+    const hn = clean(rec.text['30.이송기관명(1차)']);
+    if (!hn) { S.set(S.runs[194], '-'); [195, 196, 197].forEach((i) => S.set(S.runs[i], ' ')); place(S, 194, 'center', 598); [195, 196, 197].forEach((i) => place(S, i, 'center')); }
+    else { // 6글자씩 나눈 줄을 칸(위 4줄 높이) 세로 가운데에 놓는다: 1줄은 정중앙, 2줄은 2·3번째 줄 자리, 4줄은 모두
+      const n = Math.min(4, Math.ceil(Array.from(hn).length / 6));
+      for (let k = 0; k < n; k++) place(S, 194 + k, 'center', 598 + (k - (n - 1) / 2) * 11);
+    }
+    // 혈당은 숫자 뒤에 바로 단위를 붙이고 오른쪽 정렬
+    [[132, x.sugar[0]], [139, x.sugar[1]]].forEach(([ri, v]) => { S.set(S.runs[ri], (v || '') + 'mg/dL'); });
     if (x.medTime) { S.set(S.runs[164], x.medTime); moveX(S.runs[164], 238); }
+    CENTER.forEach((i) => place(S, i, 'center')); RIGHT.forEach((i) => place(S, i, 'right'));
+    // 출동인원 이름은 세 줄 모두 같은 중심선(실제 출력본 기준). 서식 예시 글자 하나가 한 줄만 달라 따로 맞춘다
+    [255, 262, 269].forEach((i) => moveX(S.runs[i], (492.7 - S.width(S.runs[i].text, S.runs[i].size) / 2).toFixed(2)));
+    // 의식상태 시각이 비면 '( : )' 가 서식 예시보다 2.4pt 왼쪽에 찍힌다
+    if (rec.text['23.의식상태(1차) 시각'] === ':') moveX(S.runs[103], (S.orig[103].x - 2.4).toFixed(2));
+    if (rec.text['23.의식상태(2차) 시각'] === ':') moveX(S.runs[106], (S.orig[106].x - 2.4).toFixed(2));
+    // '타 시ㆍ도' 는 체크했을 때만 '도' 가 다음 줄로 내려가고, 체크가 없으면 한 줄로 찍힌다
+    if (!(rec.checks['30.타시도(1차)'] || []).length) { S.set(S.runs[212], S.runs[212].text.replace('타 시ㆍ', '타 시ㆍ도')); S.set(S.runs[213], ' '); }
     S.set(S.runs[282], x.id || ' ');
     S.set(S.runs[286], '소속 : ' + x.station + ' ' + x.centerA);
     return more;
@@ -350,24 +393,25 @@
     const eq = (name, a, e) => { if (a !== e) bad.push(name); };
     const on = (label, cond) => { if (chk.has(norm(label)) !== !!cond) bad.push('체크:' + label); };
     eq('보고서번호', T(282), g('구급보고서번호')); eq('재난번호', T(284), g('재난번호')); eq('차량번호', T(9), g('차량번호'));
-    eq('환자명', T(26), nmv('환자명')); eq('나이', T(28), g('환자연령') ? g('환자연령') + '세' : '');
-    [['출동', 34, '출동시각'], ['현장도착', 39, '현장도착시각'], ['환자접촉', 41, '환자접촉시각'], ['현장출발', 57, '현장출발시각'], ['병원도착', 60, '병원도착시각'], ['귀소', 69, '귀소시각']].forEach(([n, i, c]) => eq(n, T(i), hm(g(c))));
+    eq('환자명', T(26), nmv('환자명') || '-'); eq('나이', T(28), (g('환자연령') || '') + '세');
+    [['출동', 34, '출동시각'], ['현장도착', 39, '현장도착시각'], ['환자접촉', 41, '환자접촉시각'], ['현장출발', 57, '현장출발시각'], ['병원도착', 60, '병원도착시각'], ['귀소', 69, '귀소시각']].forEach(([n, i, c]) => eq(n, T(i), hm(g(c)) || ':'));
     eq('신고시각', T(21), hm(g('신고시각'))); eq('거리', T(52), g('현장과의거리') ? g('현장과의거리') + 'km' : '');
-    [['', 127, 128, 129, 130, 131, '1'], ['', 134, 135, 136, 137, 138, '2']].forEach(([, a, b, c, d, e, n]) => {
-      eq('혈압' + n, T(a), g('최고혈압' + n) ? g('최고혈압' + n) + '/' + g('최저혈압' + n) + 'mmHg' : ''); eq('맥박' + n, T(b), g('맥박수' + n) ? g('맥박수' + n) + '회/min' : '');
-      eq('호흡' + n, T(c), g('호흡수' + n) ? g('호흡수' + n) + '회/min' : ''); eq('체온' + n, T(d), g('체온' + n) ? g('체온' + n) + '℃' : ''); eq('SpO2_' + n, T(e), g('SpO2_' + n) ? g('SpO2_' + n) + '%' : '');
+    [[127, 128, 129, 130, 131, '1'], [134, 135, 136, 137, 138, '2']].forEach(([a, b, c, d, e, n]) => {
+      eq('혈압' + n, T(a), g('최고혈압' + n) ? g('최고혈압' + n) + '/' + g('최저혈압' + n) + 'mmHg' : ''); eq('맥박' + n, T(b), (g('맥박수' + n) || '') + '회/min');
+      eq('호흡' + n, T(c), (g('호흡수' + n) || '') + '회/min'); eq('체온' + n, T(d), (g('체온' + n) || '') + '℃'); eq('SpO2_' + n, T(e), (g('SpO2_' + n) || '') + '%');
     });
+    eq('혈당1', T(132), (g('혈당체크1') || '') + 'mg/dL'); eq('혈당2', T(139), (g('혈당체크2') || '') + 'mg/dL');
     eq('주호소', T(144).replace(/^ㆍ주 호소:\s*/, ''), clean(g('평가소견주호소')));
-    eq('이송기관명', clean([194, 195, 196, 197].map((i) => V.runs[i].text).join('')), clean(g('병원명1')));
-    eq('인수자명', T(211), nmv('환자인수자명')); eq('대원1', T(255), nmv('구급대원1_성명')); eq('대원2', T(262), nmv('구급대원2_성명')); eq('운전요원', T(269), nmv('운전요원_성명'));
-    const lines = [146, 147, 148].map(T).filter(Boolean).join(' ');
-    eq('평가소견', lines, more ? '이면참고' : clean(g('평가소견내용')));
-    on('남', g('환자성별') === '남'); on('여', g('환자성별') === '여'); on('질병', g('환자발생유형') === '질병'); on('질병외', g('환자발생유형') === '질병외');
+    eq('이송기관명', g('병원명1') ? [194, 195, 196, 197].map((i) => V.runs[i].text).join('').replace(/\s+$/, '') : T(194), g('병원명1') ? g('병원명1').replace(/\s+$/, '') : '-');
+    eq('인수자명', T(211), nmv('환자인수자명') || '-'); eq('대원1', T(255), nmv('구급대원1_성명')); eq('대원2', T(262), nmv('구급대원2_성명')); eq('운전요원', T(269), nmv('운전요원_성명'));
+    eq('평가소견', more ? T(146) : [146, 147, 148].map((i) => V.runs[i].text).join('').replace(/\s+$/, ''), more ? '이면참고' : g('평가소견내용').replace(/\s+$/, ''));
+    on('남', g('환자성별') === '남'); on('여', g('환자성별') === '여'); on('질병', rec.extra.hasPt && g('환자발생유형') === '질병'); on('질병외', rec.extra.hasPt && g('환자발생유형') === '질병외');
     on('고혈압', g('고혈압') === '예'); on('당뇨', g('당뇨') === '예'); on('심장질환', g('심장질환') === '예'); on('지혈', g('지혈') === '예');
     on('상처 소독 처치', g('상처드레싱') === '예'); on('ECG', g('ECG') === '예'); on('목뼈', g('경추고정') === '예'); on('척추', g('척추고정') === '예'); on('머리', g('머리고정') === '예');
     on('장거리 이송', g('장거리_이송') === '예'); on('원거리 병원', g('원거리병원') === '예'); on('관할', g('병원관할1') === '관할');
     on('환자 없음', g('이송분류') === '미이송' && g('이송분류사유') === '환자없음'); on('이송거부', g('이송분류') === '미이송' && g('이송분류사유') === '이송거부');
     on('펌뷸런스', g('공동대응_펌뷸런스') === '예'); on('휴대전화', g('접수경로') === '휴대전화'); on('일반전화', g('접수경로') === '일반전화');
+    const lv = /([1-5])$/.exec(g('KTAS최종값')); [1, 2, 3, 4, 5].forEach((n) => on('LEVEL ' + n, lv && +lv[1] === n));
     return bad;
   }
 
@@ -396,6 +440,47 @@
       }
     }
     return { bytes: await out.save(), pages: out.getPageCount(), moreCount };
+  }
+
+  /* ================= 실제 출력본과 비교 ================= */
+  const RUNF = {}; F.forEach((f) => f[2].forEach((i) => { RUNF[i] = f[0]; }));
+  const UNAV = new Set([7, 18, 44, 46, 48, 253, 260, 267, 285, 287]); // 엑셀에 없는 값: 전화번호·보호자·계급·출력자·출력일시
+  const BAND = [51, 76, 138, 720, 732, 744, 806];
+  const telNorm = (t) => t.replace(/\(Tel : [^)]*\)/, '(Tel : )');
+  async function compareReal(files, row) {
+    const out = [];
+    for (const f of files) {
+      let doc;
+      try { doc = await PDFLib.PDFDocument.load(new Uint8Array(await f.arrayBuffer()), { ignoreEncryption: true }); } catch (e) { out.push({ file: f.name, err: 'PDF를 열지 못했습니다' }); continue; }
+      for (let pg = 0; pg < doc.getPageCount(); pg++) {
+        const page = doc.getPage(pg), parts = [];
+        page.node.normalizedEntries().Contents.asArray().forEach((ref) => { const st = doc.context.lookup(ref); parts.push(st instanceof PDFLib.PDFRawStream ? PDFLib.decodePDFRawStream(st).decode() : st.getContents(), new Uint8Array([10])); });
+        const u8 = new Uint8Array(parts.reduce((a, u) => a + u.length, 0)); let o = 0; parts.forEach((u) => { u8.set(u, o); o += u.length; });
+        const R = new Stream(u8, 842), idRun = R.runs.find((r) => /^\d{11}M\d{5}$/.test(r.text.trim()));
+        if (!idRun) { out.push({ file: f.name, page: pg + 1, err: '일련번호가 없는 쪽(이면 쪽이거나 다른 서식)' }); continue; }
+        const id = idRun.text.trim(), r = S0.rows.find((x) => String(x[S0.H['구급보고서번호']]).trim() === id);
+        if (!r) { out.push({ file: f.name, page: pg + 1, id, err: '엑셀에 없는 보고서번호' }); continue; }
+        const g = (k) => (k in S0.H ? String(r[S0.H[k]] == null ? '' : r[S0.H[k]]).trim() : '');
+        const rec = mapRow(g, { mask: false, centerTel: '', printer: '', printTime: '' }), t = await loadTemplate();
+        fillRecord(t.stream, rec, () => {});
+        const M = new Stream(t.stream.serialize(), 842), nz = (x) => clean(x), key = (S, run) => Math.round(run.x) + ',' + Math.round(S.top(run));
+        const mine = new Map(), real = new Map(); R.runs.forEach((run) => { const k = key(R, run); real.set(k, (real.get(k) || []).concat(nz(run.text))); });
+        M.runs.forEach((run, i) => { const k = key(M, run); mine.set(k, (mine.get(k) || []).concat([{ t: nz(run.text), i }])); });
+        const near = (map, x, y) => { for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const v = map.get((x + dx) + ',' + (y + dy)); if (v) return v; } return null; };
+        const diffs = [], skipped = new Set();
+        R.runs.forEach((run) => {
+          const t0 = nz(run.text), x = Math.round(run.x), y = Math.round(R.top(run)), v = near(mine, x, y);
+          if (!t0) return;
+          if (BAND.indexOf(y) >= 0 && (!v || UNAV.has(v[0].i))) { skipped.add(y); return; }
+          if (!v) { diffs.push({ name: '위치 (' + x + ',' + y + ')', kind: '복원본에 없음' }); return; }
+          if (UNAV.has(v[0].i)) { skipped.add(v[0].i); return; }
+          if (!v.some((a) => telNorm(a.t) === telNorm(t0))) diffs.push({ name: RUNF[v[0].i] || '위치 (' + x + ',' + y + ')', kind: '다름' });
+        });
+        mine.forEach((arr, k) => arr.forEach((a) => { if (!a.t || UNAV.has(a.i)) return; const [x, y] = k.split(',').map(Number); if (!near(real, x, y)) diffs.push({ name: RUNF[a.i] || '위치 (' + x + ',' + y + ')', kind: '실제 출력본에 없음' }); }));
+        out.push({ file: f.name, page: pg + 1, id, kind: g('이송분류'), diffs });
+      }
+    }
+    return out;
   }
 
   /* ================= 화면 ================= */
@@ -437,7 +522,9 @@
     try {
       const kind = $('#kind').value, mask = $('#mask').checked, outMode = $('#out').value, zip = outMode !== 'pdf';
       const get = (r) => (k) => (k in S0.H ? String(r[S0.H[k]] == null ? '' : r[S0.H[k]]).trim() : '');
-      const recs = S0.rows.filter((r) => !kind || String(r[S0.H['이송분류']]).trim() === kind).map((r) => mapRow(get(r), { mask }));
+      const pad = (n) => String(n).padStart(2, '0'), d0 = new Date(), printTime = $('#ptime').checked ? d0.getFullYear() + '-' + pad(d0.getMonth() + 1) + '-' + pad(d0.getDate()) + ' ' + pad(d0.getHours()) + ':' + pad(d0.getMinutes()) + ':' + pad(d0.getSeconds()) : '';
+      const copt = { mask, centerTel: $('#tel').value.trim(), printer: $('#printer').value.trim(), printTime };
+      const recs = S0.rows.filter((r) => !kind || String(r[S0.H['이송분류']]).trim() === kind).map((r) => mapRow(get(r), copt));
       if (!recs.length) throw new Error('변환할 줄이 없습니다');
       const warnings = new Map(), stats = { checked: 0, bad: 0, items: {}, ids: [] }, prog = (n, t) => { $('#plabel').textContent = '만드는 중 ' + n + ' / ' + t; $('#bar').style.width = Math.round((n / t) * 100) + '%'; };
       let res, pages, more = 0;
@@ -476,9 +563,24 @@
     window.addEventListener('dragleave', (e) => { if (e.relatedTarget === null) drop.classList.remove('over'); });
     window.addEventListener('drop', (e) => { stop(e); drop.classList.remove('over'); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f && !S0.busy) loadFile(f); });
     $('#again').addEventListener('click', reset); $('#go').addEventListener('click', convert);
+    $('#cmpfile').addEventListener('change', async () => {
+      const fs = [...$('#cmpfile').files]; $('#cmpfile').value = ''; if (!fs.length || !S0.rows.length) return;
+      const ul = $('#cmpres'); ul.textContent = ''; $('#cmpsum').textContent = '비교하는 중…';
+      try {
+        const res = await compareReal(fs); let ok = 0, bad = 0;
+        res.forEach((x) => {
+          const li = document.createElement('li');
+          if (x.err) { li.textContent = x.file + (x.page ? ' ' + x.page + '쪽' : '') + ' — ' + x.err; li.style.color = 'var(--warn)'; }
+          else if (!x.diffs.length) { ok++; li.textContent = '…' + x.id.slice(-5) + ' (' + x.kind + ') — 엑셀로 알 수 있는 모든 칸이 실제 출력본과 같습니다'; li.style.color = 'var(--ok)'; }
+          else { bad++; const u = [...new Set(x.diffs.map((d) => d.name + '(' + d.kind + ')'))]; li.textContent = '…' + x.id.slice(-5) + ' (' + x.kind + ') — 다른 곳 ' + x.diffs.length + ': ' + u.slice(0, 8).join(', '); li.style.color = 'var(--err)'; }
+          ul.appendChild(li);
+        });
+        $('#cmpsum').textContent = '비교 결과: 같음 ' + ok + '쪽 / 다름 ' + bad + '쪽 (전화번호·보호자·계급·출력자·출력일시는 엑셀에 없어 제외)';
+      } catch (e) { $('#cmpsum').textContent = '비교하지 못했습니다: ' + (e.message || e); }
+    });
     $('#save').addEventListener('click', () => { if (S0.result) saveBlob(S0.result.name, S0.result.blob); });
     $('#open').addEventListener('click', () => { if (S0.result) window.open(URL.createObjectURL(S0.result.blob), '_blank'); });
   }
   bind();
-  window.__smart = { verify, mapRow, resolveChecks, F, FIELD, loadFile, convert, readFieldName: null, S0, fieldOpts, loadTemplate, fillRecord };
+  window.__smart = { compareReal, wrapText, verify, mapRow, resolveChecks, F, FIELD, loadFile, convert, readFieldName: null, S0, fieldOpts, loadTemplate, fillRecord };
 })();

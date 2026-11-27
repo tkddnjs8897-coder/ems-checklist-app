@@ -52,6 +52,9 @@ details{font-size:13px;color:var(--muted)}summary{cursor:pointer;font-weight:700
       <label>대상<select id="kind"></select></label>
       <label>저장 방식<select id="out"><option value="pdf">PDF 한 개</option><option value="month">월별 PDF를 ZIP으로</option><option value="center">센터별 PDF를 ZIP으로</option></select></label>
       <label class="chk"><input type="checkbox" id="mask"> 개인정보 가리기 (환자·대원 이름, 생년월일, 상세주소)</label>
+      <label>센터 전화번호 (선택, 서식 위쪽에 찍힘)<input id="tel" type="text" placeholder="예: 063-000-0000" style="font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink)"></label>
+      <label>출력자 (선택)<input id="printer" type="text" placeholder="이름" style="font:inherit;font-size:14px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink)"></label>
+      <label class="chk"><input type="checkbox" id="ptime" checked> 출력 일시를 PDF를 만든 시각으로 표시</label>
     </div>
     <div><button id="go" class="btn primary" type="button">PDF 만들기</button></div>
     <div id="prog" class="prog" hidden><div class="bar"><div id="bar"></div></div><div id="plabel" class="small"></div></div>
@@ -61,6 +64,11 @@ details{font-size:13px;color:var(--muted)}summary{cursor:pointer;font-weight:700
       <div class="btns"><button id="save" class="btn primary" type="button">받기</button><button id="open" class="btn" type="button">새 창에서 보기</button></div>
       <details><summary id="wsum"></summary><ul id="warn"></ul></details>
     </div>
+    <details><summary>실제 출력본과 비교 (선택)</summary>
+      <p class="small" style="margin:8px 0">구급정보시스템에서 뽑은 실제 구급일지 PDF를 올리면, 같은 보고서번호의 엑셀 줄로 만든 쪽과 칸마다 비교합니다(위치 1pt 이내). PDF는 이 PC 밖으로 나가지 않습니다.</p>
+      <input type="file" id="cmpfile" accept=".pdf" multiple>
+      <div id="cmpsum" class="small" style="margin-top:8px;font-weight:700"></div><ul id="cmpres"></ul>
+    </details>
   </section>
 
   <details class="help"><summary>어떻게 복원하나요?</summary><ul>
